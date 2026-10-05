@@ -1,0 +1,11 @@
+node_modules/
+lib/
+*.tgz
+coverage/
+work/
+local-archive/
+*.tsbuildinfo
+test-results/
+playwright-report/
+.env
+.env.*

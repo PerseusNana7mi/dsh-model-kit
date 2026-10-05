@@ -1,0 +1,121 @@
+.dmm{color:inherit;font:inherit;max-width:960px;margin:24px auto;padding:24px;border:1px solid color-mix(in srgb,currentColor 18%,transparent);border-radius:12px}.dmm header,.dmm-heading{display:flex;justify-content:space-between;align-items:center;gap:16px}.dmm h2{margin:0;font-size:20px}.dmm h3{margin:24px 0 12px;font-size:17px}.dmm p{font-size:13px;line-height:1.65;opacity:.8}.dmm fieldset{border:0;padding:0;margin:0;min-width:0}.dmm label{display:flex;flex-direction:column;gap:7px;margin:12px 0;font-size:14px}.dmm input,.dmm select,.dmm button{font:inherit;color:inherit;border:1px solid color-mix(in srgb,currentColor 24%,transparent);border-radius:7px;padding:9px 11px;background:transparent;box-sizing:border-box;min-width:0}.dmm input:focus-visible,.dmm select:focus-visible,.dmm button:focus-visible{outline:2px solid #5885ee;outline-offset:2px}.dmm select option{color:CanvasText;background:Canvas}.dmm button{cursor:pointer}.dmm button:hover{background:color-mix(in srgb,currentColor 8%,transparent)}.dmm button:disabled,.dmm input:disabled{opacity:.5;cursor:default}.dmm .dmm-primary{background:#285bcb;color:#fff;border-color:#285bcb}.dmm-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}.dmm .dmm-check{flex-direction:row;align-items:center}.dmm-check input{margin:0;width:16px;height:16px;accent-color:#285bcb}.dmm-actions{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}.dmm-prices{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.dmm-prices div{display:flex;flex-direction:column;gap:8px;padding:12px;background:color-mix(in srgb,currentColor 4%,transparent);border-radius:8px}.dmm-prices span{font-size:12px;opacity:.7}.dmm-prices strong{font-size:18px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.dmm hr{border:0;border-top:1px solid color-mix(in srgb,currentColor 15%,transparent);margin:24px 0}.dmm .dmm-error{opacity:1;color:#d34848;padding:12px;border:1px solid currentColor;border-radius:8px}.dmm .dmm-notice{opacity:1;padding:12px;background:color-mix(in srgb,#5589ee 12%,transparent);border-radius:8px}.dmm-badge{font-size:12px;padding:4px 8px;white-space:nowrap;background:color-mix(in srgb,currentColor 8%,transparent);border-radius:6px}.dmm-efforts>div{display:grid;grid-template-columns:130px 1fr;align-items:center;gap:12px;margin:5px 0}@container dmm (max-width:600px){.dmm{padding:16px}.dmm-grid{grid-template-columns:1fr}.dmm-prices{grid-template-columns:repeat(2,minmax(0,1fr))}.dmm header,.dmm-heading{align-items:flex-start;flex-wrap:wrap}}
+.dmm-import{margin:20px 0;padding:16px;border:1px solid color-mix(in srgb,currentColor 20%,transparent);border-radius:8px}.dmm-import summary{cursor:pointer;font-weight:600}.dmm-import-list{max-height:360px;overflow:auto;margin:16px 0}.dmm-import-list>div{padding:8px;border-bottom:1px solid color-mix(in srgb,currentColor 12%,transparent);overflow-wrap:anywhere}.dmm-import-preview{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;padding:12px;background:color-mix(in srgb,currentColor 5%,transparent)}
+.dmm-diff>div{padding:10px 0;border-bottom:1px solid color-mix(in srgb,currentColor 16%,transparent)}.dmm-diff>div>div{display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px;overflow-wrap:anywhere}.dmm-import p{overflow-wrap:anywhere}@container dmm (max-width:600px){.dmm-diff>div>div{grid-template-columns:1fr}}
+
+.dmm button.dmm-primary,.dmm button.dmm-primary:hover,.dmm button.dmm-primary:focus,.dmm button.dmm-primary:focus-visible{background:#285bcb;color:#fff;border-color:#285bcb}.dmm button.dmm-primary:hover:not(:disabled),.dmm button.dmm-primary:active:not(:disabled){background:#204aa6;border-color:#204aa6}
+
+.dmm-source{float:right;font-size:12px;opacity:.7;padding:10px}.dmm-advanced{border-top:1px solid color-mix(in srgb,currentColor 15%,transparent);padding:16px 0;margin:16px 0}.dmm-advanced>summary{cursor:pointer;font-weight:600}.dmm-prices div{background:transparent;padding:10px 0}.dmm-advanced .dmm-import{margin:12px 0}.dmm header{margin-bottom:24px}
+.dmm-model-select{margin:12px 0}.dmm-model-select>button{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;text-align:left}.dmm-model-select>button span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dmm-model-select>select{display:block;width:100%;margin-top:4px;max-height:min(320px,40vh);overflow-y:auto;overscroll-behavior:contain;padding:4px;background:Canvas;color:CanvasText}.dmm-model-select>select option{padding:8px 10px}.dmm-model-select>label{margin-bottom:7px}
+
+/* Slightly tighter spacing; preserve control sizes and typography. */
+.dmm label{gap:6px;margin:10px 0}.dmm header{margin-bottom:20px}.dmm h3{margin:20px 0 10px}.dmm h4{margin:16px 0 12px}.dmm hr{margin:20px 0}.dmm-advanced{padding:13px 0;margin:13px 0}.dmm-prices div{gap:6px;padding:8px 0}.dmm-actions{margin:13px 0}.dmm-model-select{margin:10px 0}
+
+/* Model editor follows the reference's section order and visual hierarchy. */
+.dmm .dmm-grid{gap:0 16px}.dmm .dmm-grid label{margin:8px 0;font-size:14px;font-weight:500;gap:7px}
+.dmm input:not([type=checkbox]),.dmm select{background:color-mix(in srgb,currentColor 4%,transparent);border-color:color-mix(in srgb,currentColor 14%,transparent)}
+.dmm h4,.dmm .dmm-section-title{font-size:14px;font-weight:600;line-height:1.5;margin:22px 0 10px;opacity:.75}
+.dmm .dmm-source-review{margin:18px 0 24px}.dmm .dmm-source-review>button{font-size:13px;padding:9px 14px;background:color-mix(in srgb,currentColor 4%,transparent)}
+.dmm .dmm-spec-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:22px 0 6px}.dmm .dmm-spec-heading h4{margin:0}
+.dmm button.dmm-text-button{border:0;padding:4px 0;background:transparent;color:#285bcb;font-size:13px}
+.dmm .dmm-prices{gap:16px;margin:0 0 20px}.dmm .dmm-prices div{gap:8px;padding:0}.dmm .dmm-prices strong{font-size:15px;font-weight:400}.dmm .dmm-prices span{font-size:13px}
+.dmm .dmm-advanced{margin:20px 0 16px;padding:18px 0 0}.dmm .dmm-advanced>summary{font-size:14px;list-style:none;position:relative;padding-right:24px}.dmm .dmm-advanced>summary::after{content:'⌄';position:absolute;right:3px;top:0}.dmm .dmm-advanced[open]>summary::after{content:'⌃'}
+.dmm .dmm-summary-hint{display:block;font-size:12px;font-weight:400;opacity:.65;margin-top:6px}.dmm .dmm-price-editor{padding:12px 16px;background:color-mix(in srgb,currentColor 3%,transparent);border-radius:8px}.dmm .dmm-advanced+button{margin-top:8px}
+.dmm .dmm-model-select{position:relative}.dmm .dmm-model-select>select{position:absolute;left:0;z-index:1000;margin:4px 0;background:Canvas;color:CanvasText;box-shadow:0 6px 20px #0002}
+
+/* One toolbar: fill and undo on the left, source on the right. */
+.dmm .dmm-source-review{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;margin:18px 0 22px}
+.dmm .dmm-source-review>button{order:0;flex:none}.dmm .dmm-source-review>.dmm-undo{order:1;padding:4px;border:0;background:none;font-size:12px;color:#285bcb}
+.dmm .dmm-source-picker{order:2;margin-left:auto;flex:0 1 46%;min-width:180px}.dmm .dmm-source-picker .dmm-model-select{margin:0}
+.dmm .dmm-source-picker label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);margin:0}
+.dmm .dmm-source-picker button{font-size:13px;padding:8px 10px}.dmm .dmm-source{order:2;float:none;margin-left:auto;padding:0;font-size:12px}
+.dmm .dmm-source-review>.dmm-fill-status{order:3;margin:0;font-size:12px;flex:1 1 auto}.dmm .dmm-source-advanced{order:4;margin-left:auto;font-size:12px}.dmm .dmm-source-advanced>summary{cursor:pointer;opacity:.65}.dmm .dmm-source-advanced[open]{flex-basis:100%}.dmm .dmm-source-review>[role=alert]{order:5;flex-basis:100%;margin:0}
+@container dmm (max-width:600px){.dmm .dmm-source-picker{flex:1 1 100%;min-width:0}.dmm .dmm-source-review{gap:8px}}
+
+.dmm .dmm-source-picker .dmm-model-select>select{left:0;right:auto;width:max-content;min-width:100%;max-width:min(680px,calc(100vw - 64px));overflow-x:auto}.dmm a.dmm-source{order:2;flex:0 0 auto;text-align:right;text-decoration:none;color:inherit;margin:0 0 0 auto;font-size:12px}.dmm a.dmm-source:hover{text-decoration:underline}
+
+.dmm .dmm-source-review{margin:14px 0 12px}.dmm .dmm-source-review+.dmm-section-title{margin-top:14px}.dmm .dmm-source-picker{flex:0 1 38%;min-width:150px;margin-left:auto}.dmm .dmm-source-picker~a.dmm-source{margin-left:0}
+
+.dmm .dmm-select-popover{position:absolute;left:0;z-index:1000;width:max-content;min-width:100%;padding:8px;box-sizing:border-box;background:Canvas;color:CanvasText;border:1px solid color-mix(in srgb,currentColor 20%,transparent);border-radius:8px;box-shadow:0 6px 20px #0002}
+.dmm .dmm-select-popover>input{display:block;width:100%;margin:0 0 6px;font-size:13px;line-height:1.4}
+.dmm .dmm-select-popover>select{display:block;width:100%;overflow:auto;overscroll-behavior:contain;padding:4px;background:Canvas;color:CanvasText;font-size:13px;line-height:1.4}
+.dmm .dmm-select-popover option{padding:6px 8px;font-size:13px}.dmm .dmm-select-popover small{display:block;margin-top:5px;font-size:11px}
+.dmm .dmm-model-picker{align-items:start}.dmm .dmm-source-advanced .dmm-source-picker{min-width:0;width:100%;margin:10px 0}
+
+/* Keep both navigation steps on one compact row, including narrow windows. */
+.dmm .dmm-model-picker{grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:12px}
+.dmm .dmm-model-picker .dmm-model-select{margin:4px 0 10px}.dmm .dmm-model-picker label{font-size:12px;margin:0 0 5px}
+.dmm .dmm-model-picker button{padding:7px 9px;font-size:13px}.dmm .dmm-source-review{margin:10px 0}
+@container dmm (max-width:600px){.dmm .dmm-model-picker{grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:8px}}
+
+/* Compact model editor: keep useful fields visible and secondary controls folded. */
+.dmm{padding:18px;margin:16px auto}.dmm header{margin-bottom:12px;align-items:flex-start}.dmm h2{font-size:18px}.dmm header p{margin:6px 0 0;font-size:12px}
+.dmm .dmm-heading{margin:4px 0}.dmm h3{margin:10px 0;font-size:15px}.dmm .dmm-grid label{margin:6px 0;font-size:13px;gap:5px}
+.dmm input:not([type=checkbox]),.dmm select,.dmm button{padding:7px 9px}.dmm .dmm-check{margin:7px 0;font-size:13px}
+.dmm .dmm-spec-heading{margin:14px 0 6px}.dmm .dmm-prices{margin:0 0 12px;gap:10px}.dmm .dmm-prices div{gap:5px}
+.dmm .dmm-advanced{padding:12px 0 0;margin:12px 0 10px}.dmm .dmm-summary-hint{margin-top:3px}.dmm .dmm-notice{padding:7px 10px;margin:8px 0;font-size:12px}
+@container dmm (max-width:600px){.dmm{padding:14px}.dmm header{flex-direction:row}.dmm .dmm-capacities{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.dmm .dmm-capacities label{font-size:12px}.dmm .dmm-prices{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.dmm .dmm-prices span{font-size:11px}}
+.dmm .dmm-model-picker .dmm-model-select>label{margin:0 0 5px;font-size:12px}
+
+/* The settings footer is a column flex child: auto side margins otherwise shrink it to its content. */
+.dmm{box-sizing:border-box;width:100%;max-width:none;min-width:0;align-self:stretch;margin:0;container:dmm / inline-size;padding:clamp(12px,2%,18px)}
+
+/* Dedicated settings page: stable navigation and one owned editor scroll area. */
+.dmm-settings-page{width:100%;min-width:0;min-height:0;overflow:hidden}
+.dmm-settings-page>.dmm{height:100%;display:flex;flex-direction:column;border:0;padding:0;overflow:hidden}
+.dmm-settings-page .dmm-navigation,.dmm-settings-page header{flex:none}
+.dmm-settings-page .dmm-editor-scroll{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;overflow-anchor:none;scrollbar-gutter:stable;padding:0 8px 12px 0}
+
+.dmm .dmm-grid.dmm-model-identity{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.dmm .dmm-model-capabilities{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:6px 0}
+.dmm .dmm-model-capabilities>label{margin:0;font-size:13px}
+.dmm .dmm-reasoning-config{flex-direction:row;align-items:center;gap:8px}
+.dmm .dmm-reasoning-config select{font-size:13px;max-width:100%;padding:5px 7px}
+
+.dmm .dmm-save-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:none;padding:10px 0 0;border-top:1px solid color-mix(in srgb,currentColor 15%,transparent)}
+.dmm .dmm-save-bar>span{font-size:12px;opacity:.75;min-width:0}
+.dmm .dmm-save-bar>button{flex:none;padding:4px 12px;font-size:13px;line-height:1.4}
+
+/* Compact toolbar, with comparison on its own full-width row. */
+.dmm .dmm-source-review{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;align-items:center;gap:4px 8px;margin:4px 0}
+.dmm .dmm-source-review>button:first-child{grid-column:1;grid-row:1}
+.dmm .dmm-source-review>.dmm-undo{grid-column:2;grid-row:1;font-size:11px;padding:0}
+.dmm .dmm-source-review>.dmm-fill-status{grid-column:3;grid-row:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px;line-height:1.4;margin:0}
+.dmm .dmm-source-review>.dmm-source-advanced{grid-column:1 / -1;grid-row:2;justify-self:stretch;margin:0;font-size:11px;white-space:normal}
+.dmm .dmm-source-review>a.dmm-source{grid-column:4;grid-row:1;margin:0;padding:0;font-size:11px;white-space:nowrap}
+.dmm .dmm-source-review>.dmm-source-advanced[open]{grid-column:1 / -1;grid-row:2;justify-self:stretch;white-space:normal}
+.dmm .dmm-save-bar>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dmm .dmm-save-bar>.dmm-notice{padding:0;margin:0;background:none;border:0;font-size:12px}
+@container dmm (max-width:480px){.dmm .dmm-source-review{gap:4px}.dmm .dmm-source-review>button:first-child{padding:5px;font-size:12px}.dmm .dmm-source-review>.dmm-undo{font-size:10px}}
+
+.dmm .dmm-price-editor{padding:8px 10px}
+.dmm .dmm-price-editor .dmm-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:0 10px}
+.dmm .dmm-price-editor .dmm-grid label{margin:4px 0;gap:3px;font-size:12px}
+.dmm .dmm-price-editor input,.dmm .dmm-price-editor select{font-size:12px;padding:5px 7px;width:100%}
+.dmm .dmm-price-editor p.dmm-price-note{font-size:11px;line-height:1.4;margin:4px 0;overflow-wrap:anywhere}
+.dmm .dmm-price-editor .dmm-actions{margin:6px 0 2px}
+.dmm .dmm-price-editor .dmm-actions button{font-size:12px;padding:5px 9px}
+
+/* Compare values horizontally; no decorative separator or paragraph spacing. */
+.dmm .dmm-source-advanced .dmm-source-picker{margin:5px 0;width:100%}
+.dmm .dmm-source-advanced .dmm-diff>div{display:grid;grid-template-columns:125px minmax(0,1fr);align-items:start;gap:8px;padding:4px 0;border:0}
+.dmm .dmm-source-advanced .dmm-diff .dmm-check{margin:0;font-size:12px;line-height:1.5}
+.dmm .dmm-source-advanced .dmm-diff>div>div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;font-size:12px;line-height:1.5;min-width:0}
+.dmm .dmm-source-advanced .dmm-diff span{min-width:0;overflow-wrap:anywhere;white-space:normal}
+.dmm .dmm-source-advanced .dmm-diff>p{margin:4px 0;font-size:11px}
+.dmm .dmm-source-advanced>button{margin:4px 0 0;padding:4px 8px;font-size:12px}
+.dmm .dmm-advanced{padding:7px 0 0;margin:7px 0 5px}
+@container dmm (max-width:480px){.dmm .dmm-source-advanced .dmm-diff>div{grid-template-columns:100px minmax(0,1fr);gap:5px}.dmm .dmm-source-advanced .dmm-diff>div>div{gap:5px}}
+
+/* Match secondary actions to the compact editor controls. */
+.dmm .dmm-source-review>button:first-child,.dmm .dmm-heading>button{padding:5px 10px;font-size:12px;line-height:1.4}
+.dmm .dmm-advanced .dmm-import{margin:8px 0;padding:9px 12px}
+.dmm .dmm-advanced .dmm-import>summary{font-size:13px;line-height:1.5;font-weight:600}
+
+/* Compact controls and vertical rhythm inside both model-operation panels. */
+.dmm .dmm-import button{padding:5px 10px;font-size:12px;line-height:1.4}
+.dmm .dmm-import label{margin:5px 0;gap:4px;font-size:13px}
+.dmm .dmm-import select,.dmm .dmm-import input:not([type=checkbox]){padding:5px 8px;font-size:13px}
+.dmm .dmm-import p{margin:5px 0;font-size:12px;line-height:1.45}
+.dmm .dmm-import-list{margin:6px 0}
+.dmm .dmm-import-list>div{padding:5px 0}
+.dmm .dmm-import .dmm-diff>div{padding:5px 0}
