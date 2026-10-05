@@ -51,7 +51,11 @@ export default class MetadataController extends TypertRemoteService {
       if (r.action === 'manualMode') await service.useManualPrices(r.provider, r.id, r.revision)
       return replySchema.parse({ ...service.readModel(r.provider, r.id), prices: service.readPrices(r.provider, r.id) })
     } catch (error) {
-      throw new RemoteError('gateway/bad-request', readableError(error), {})
+      const message = readableError(error)
+      const operational = error instanceof SyntaxError || error instanceof TypeError
+        || error instanceof DOMException && (error.name === 'AbortError' || error.name === 'TimeoutError')
+        || /(?:request failed: HTTP|service is unavailable|catalog exceeds|response has no body)/i.test(message)
+      throw new RemoteError(operational ? 'gateway/internal' : 'gateway/bad-request', message, {})
     }
   }
 }

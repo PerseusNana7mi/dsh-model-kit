@@ -61,7 +61,7 @@ export function effectivePrices(record: PriceRecord | undefined): Prices {
 
     const effective = value * (record.mode === 'multiplier' ? (record.multiplier ?? 1) : 1)
 
-    if (!Number.isFinite(effective)) throw new Error('Effective price overflow')
+    if (!Number.isFinite(effective) || effective < 0) continue
 
     result[key] = effective
 
@@ -157,9 +157,7 @@ export function readModel(settings: SettingsPort, ns: string, provider: string, 
 
   }
 
-  const protectedPreset = /^(deepseek|opencode|openai|anthropic|google|amazon-bedrock|azure|github-copilot|groq|mistral|xai|zai|zhipuai|moonshotai|alibaba|openrouter|cerebras|huggingface|minimax|ollama)(-|$)/i.test(provider) || !own(route, 'api') || !own(route, 'baseURL')
-
-  return { model, revision: section.revision, index, models, section, protectedPreset }
+  return { model, revision: section.revision, index, models, section }
 
 }
 
@@ -167,9 +165,9 @@ export function readModel(settings: SettingsPort, ns: string, provider: string, 
 
 export function modelSnapshot(settings: SettingsPort, ns: string, provider: string, id: string) {
 
-  const { model, revision, protectedPreset } = readModel(settings, ns, provider, id)
+  const { model, revision } = readModel(settings, ns, provider, id)
 
-  return { model, revision, protectedPreset }
+  return { model, revision }
 
 }
 
@@ -197,7 +195,6 @@ export async function saveModel(settings: SettingsPort, ns: string, provider: st
 
   assertRevision(current.section, expectedRevision)
 
-  if (current.protectedPreset && !allowPresetOverride) throw new Error('内置或继承预设默认只读；请明确开启覆盖预设参数')
 
   if ('maxTokens' in input && input.maxTokens !== current.model.maxTokens && !acceptDefaultOutputCap) {
 
@@ -366,6 +363,12 @@ export async function saveMultiplier(settings: SettingsPort, ns: string, key: st
 
     throw new Error('Reference requires known input and output prices')
 
+  }
+  for (const key of PRICE_KEYS) {
+    const value = reference.prices[key]
+    if (value !== undefined && (!Number.isFinite(value) || value < 0 || !Number.isFinite(value * multiplier))) {
+      throw new Error('Effective price overflow')
+    }
   }
 
   const current = readPrices(settings, ns, key)

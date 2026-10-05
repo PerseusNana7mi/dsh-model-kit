@@ -34,6 +34,26 @@ test('invalid config fails at load', async () => {
   await fiber.dispose()
 })
 
+test('concurrent refreshes share a bounded catalog download', async t => {
+  const ctx = new Context()
+  const fiber = await ctx.plugin(Plugin, {})
+  t.after(() => fiber.dispose())
+  let calls = 0
+  let release
+  t.mock.method(globalThis, 'fetch', async () => {
+    calls++
+    await new Promise(resolve => { release = resolve })
+    return new Response('{}')
+  })
+  const a = ctx.modelMetadata.refresh()
+  const b = ctx.modelMetadata.refresh()
+  release()
+  assert.deepEqual(await a, await b)
+  assert.equal(calls, 1)
+  t.mock.method(globalThis, 'fetch', async () => new Response('x'.repeat(33 * 1024 * 1024)))
+  await assert.rejects(ctx.modelMetadata.refresh(), /32 MiB/)
+})
+
 test('network and malformed catalog failures remain explicit and a subsequent refresh recovers', async t => {
   const ctx = new Context()
   const fiber = await ctx.plugin(Plugin, {})

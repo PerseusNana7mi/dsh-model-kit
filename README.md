@@ -1,10 +1,14 @@
 # dsh-model-kit
 
+[English](README.en.md) | 中文
+
 **DeepSeek Harness 模型信息助手：查询模型参数与参考价格，核对后保存到 DSH。**
 
 [安装](#安装) · [快速开始](#快速开始) · [使用说明](docs/editor.md) · [文档索引](docs/README.md) · [开发](docs/development.md)
 
 面向 **DSH Desktop 0.2.x（从 0.2.0-rc.2 起）**，在 **设置 → 模型信息助手** 中管理已配置模型。开发测试基线为 `0.2.0-rc.2`；其他宿主版本的完整功能仍需单独验证，详见 [兼容策略](docs/development.md#宿主版本兼容策略)。
+
+<a href="assets/model-kit-ui.png"><img src="assets/model-kit-ui.png" alt="模型信息助手界面：模型参数与参考单价" width="600"></a>
 
 ## 功能
 
@@ -21,9 +25,17 @@
 
 ## 安装
 
-当前使用本地预构建 `.tgz` 包。已有安装包时，在 Desktop 插件管理界面选择本地包安装，然后从托盘完整退出并重新打开应用。
+插件已发布到 [npm：dsh-model-kit](https://www.npmjs.com/package/dsh-model-kit)。使用与桌面端配套的 DSH CLI 安装：
 
-从源码构建需要 **Node.js ≥ 22.19**：
+```sh
+dsh plugin --profile desktop add dsh-model-kit
+```
+
+使用独立 Web profile 时，将命令中的 `desktop` 改为 `web`。安装完成后，从托盘完整退出并重新打开 Desktop，在 **设置 → 模型信息助手** 中确认页面出现。单独执行 `npm install dsh-model-kit` 不会将插件挂载到 DSH profile。
+
+需要离线安装时，可在 Desktop 插件管理界面选择本地预构建 `.tgz` 包。
+
+从源码自行构建本地包需要 **Node.js ≥ 22.19**：
 
 ```sh
 npm ci
@@ -32,13 +44,7 @@ npm pack
 
 `npm pack` 会先构建，输出文件名取决于 `package.json` 中的版本。不要直接把未构建源码作为插件安装。
 
-使用 CLI 时，将下面占位符替换为 Desktop 实际使用的 profile 和生成包的完整路径：
-
-```sh
-dsh plugin --profile <实际-profile> add <完整路径/dsh-model-kit-版本.tgz>
-```
-
-请使用与桌面端配套的 CLI。
+生成的 `.tgz` 可按上述本地包方式安装。
 
 ## 快速开始
 

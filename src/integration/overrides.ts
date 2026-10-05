@@ -29,7 +29,7 @@ export class ModelOverrides {
     if (!row) throw new Error('内置目录中没有此模型')
     const base: ModelFields = { id }
     if (row.name) base.name = row.name
-    for (const key of ['contextWindow', 'maxTokens'] as const) if (row[key] !== undefined) base[key] = row[key]!
+    for (const key of ['contextWindow', 'maxTokens'] as const) if (Number.isSafeInteger(row[key]) && row[key]! > 0) base[key] = row[key]!
     const input = row.inputModalities?.filter((value): value is 'text' | 'image' => value === 'text' || value === 'image')
     if (input?.length) base.input = [...input]
     const all = object(profile.modelOverrides ?? {})

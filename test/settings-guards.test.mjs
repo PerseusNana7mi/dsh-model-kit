@@ -26,3 +26,12 @@ test('model arrays containing redacted values are never reconstructed', async ()
   assert.equal(mutations, 0)
   assert.deepEqual(value, before)
 })
+
+test('builtin discovery ignores invalid host limits', async () => {
+  const value = { providers: { p: { modelOverrides: {} } } }
+  const port = { writable: true, describe: () => [{ ns: 'n', value, revision: 0 }], mutate: async () => {} }
+  const llm = { listConfigurableProviders: () => [{ provider: 'p', settingsNs: 'n', settingsPath: ['providers', 'p'], declared: false }],
+    discoverModels: async () => [{ id: 'm', name: 'Model', contextWindow: -1, maxTokens: Number.MAX_SAFE_INTEGER + 1 }] }
+  const snapshot = await new ModelOverrides(() => port, () => llm, 'n', () => new AbortController().signal).read('p', 'm')
+  assert.deepEqual(snapshot.base, { id: 'm', name: 'Model' })
+})

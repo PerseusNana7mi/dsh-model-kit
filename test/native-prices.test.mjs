@@ -24,13 +24,22 @@ function settings(value) {
       rev++
     } }
 }
-test('preset guard is enforced in backend, consent is per save and preserves other models', async () => {
+test('model save preserves other configured models', async () => {
   const value = { providers: { 'opencode-go': { api: 'test', baseURL: 'https://example.test', models: [{ id: 'm' }, { id: 'other' }] } } }
   const port = settings(value)
-  await assert.rejects(saveModel(port, 'test', 'opencode-go', 'm', { name: 'New' }, 0))
-  await saveModel(port, 'test', 'opencode-go', 'm', { name: 'New' }, 0, false, true)
+  await saveModel(port, 'test', 'opencode-go', 'm', { name: 'New' }, 0)
   assert.deepEqual(value.providers['opencode-go'].models[1], { id: 'other' })
-  await assert.rejects(saveModel(port, 'test', 'opencode-go', 'm', { name: 'Again' }, 1))
+  await assert.rejects(saveModel(port, 'test', 'opencode-go', 'm', { name: 'Again' }, 0))
+})
+test('malformed stored multiplier stays readable and can switch to manual prices', async () => {
+  const record = { currency: 'USD', unit: 'per-million-tokens', mode: 'multiplier', multiplier: 1e308,
+    rates: { input: { value: 7, origin: 'manual', updatedAt: 1 } },
+    reference: { prices: { input: 2, output: 2 }, source: { url: 'https://example.test', provider: 'p', model: 'm', fetchedAt: 1 } } }
+  const port = settings({ prices: { m: record } })
+  assert.deepEqual(readPrices(port, 'test', 'm').effective, {})
+  const manual = await (await import('../lib/integration/settings.js')).useManualPrices(port, 'test', 'm', 0)
+  assert.deepEqual(manual.effective, { input: 7 })
+  await assert.rejects(saveMultiplier(port, 'test', 'm', record.reference, 1e308, 1), /overflow/)
 })
 test('currency switch drops old rates/reference and multiplier cannot reuse other-currency manual values', async () => {
   const port = settings({ prices: {} })

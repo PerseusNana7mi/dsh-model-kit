@@ -20,13 +20,13 @@ npm pack
 | `npm test` | 先构建，再测试 lib 中的实际产物 |
 | `npm run verify` | 类型检查、构建测试、打包文件预检查；会重建 lib |
 | `npm run test:ui` | 五组浏览器脚本，部分截图写入 work |
-| `npm pack` | prepack 先构建，再生成本地 tgz；不发布到 npm |
+| `npm pack` | prepack 先构建，仅生成本地 tgz，不等同于 `npm publish` |
 
 日常使用标准测试命令，不在修改源码后直接测试旧 `lib`。浏览器 fixture 测试不能替代真实 Desktop 验收。GitHub Actions 在 Windows runner 上使用 Node 22.19.0，执行 `npm ci`、`npm run verify` 和五组 Edge 浏览器测试。
 
 ## 宿主版本兼容策略
 
-所有 DSH peer 使用 `^0.2.0-rc.2 || ^0.2.1-alpha.1`，接受 rc.2 起的同基版本预发布、`0.2.1-alpha.1` 起的同基版本预发布及后续 `0.2.x` 正式版；不接受 `0.3.0` 及其预发布。Cordis 使用 `~4.0.4`，Loader 使用 `~1.0.5`，允许各自补丁更新；React 保持 `^18.3.1`。
+所有 DSH peer 与声明性的 `engines.dsh` 使用 `^0.2.0-rc.2 || ^0.2.1-alpha.1`，接受 rc.2 起的同基版本预发布、`0.2.1-alpha.1` 起的同基版本预发布及后续 `0.2.x` 正式版；不接受 `0.3.0` 及其预发布。当前安装兼容检查以 peer 为准，`engines.dsh` 只供元数据阅读。Cordis 使用 `~4.0.4`，Loader 使用 `~1.0.5`，允许各自补丁更新；React 保持 `^18.3.1`。
 
 DSH rc.2 的 [官方兼容检查器](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.0-rc.2/packages/boot/app-boot/src/plugin-compatibility.ts) 使用 `includePrerelease: true`，因此上述范围还允许后续 `0.2.x` 的预发布进入加载检查。npm 默认规则不同：每个新补丁版本的预发布需要显式加入范围；例如未来 `0.2.2-alpha.1` 会通过当前 DSH 检查，但不满足 npm 默认 peer 判断。后续支持此类版本时，应核对接口、补充范围并回归测试，不依赖用户强制安装或版本豁免。
 
@@ -64,4 +64,4 @@ DSH rc.2 的 [官方兼容检查器](https://github.com/deepseek-ai/deepseek-har
 1. README 只保留用户需要的功能、安装、操作与限制，不堆放调试历史或发布待办。
 2. 行为变化更新对应使用说明或 API 文档；自动化测试结果以实际 CI 运行记录为准。
 3. 不把浏览器 fixture 或模拟测试写成真实 Desktop 验收。
-4. 发布前核对 README 命令、相对链接、源代码行为和许可。
+4. 发布新版本前核对 README 命令、相对链接、源代码行为和许可。

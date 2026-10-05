@@ -76,6 +76,7 @@ export default class ModelMetadataService extends Service {
   private readonly quotes = new Map<string, { prices: Prices; source: PriceSource; currency: Currency; targetId: string; expires: number }>()
   private nativeCatalog: { data: unknown; fetchedAt: number } | undefined
   private catalog: unknown
+  private refreshPending: Promise<{ fetchedAt: number; source: string }> | undefined
 
   private fetchedAt = 0
 
@@ -147,8 +148,9 @@ export default class ModelMetadataService extends Service {
   readModel(provider: string, id: string) {
 
     const snapshot = modelSnapshot(this.settings(), this.config.modelNamespace, provider, id)
-    const directory = this.owner.get('llm')?.listConfigurableProviders().find(row => row.settingsNs === this.config.modelNamespace && row.provider === provider)
-    return { ...snapshot, protectedPreset: snapshot.protectedPreset || (directory !== undefined && directory.declared !== true) }
+    const directory = this.owner.get('llm')?.listConfigurableProviders().find(row => row.settingsNs === this.config.modelNamespace
+      && row.provider === provider && row.settingsPath.length === 2 && row.settingsPath[0] === 'providers' && row.settingsPath[1] === provider)
+    return { ...snapshot, protectedPreset: directory !== undefined && directory.declared !== true }
 
   }
 
@@ -374,7 +376,13 @@ export default class ModelMetadataService extends Service {
 
 
   async refresh() {
+    if (this.refreshPending) return this.refreshPending
+    const pending = this.fetchCatalog()
+    this.refreshPending = pending
+    try { return await pending } finally { if (this.refreshPending === pending) this.refreshPending = undefined }
+  }
 
+  private async fetchCatalog() {
     const response = await fetch(this.config.catalogUrl, {
 
       signal: AbortSignal.any([this.lifetime.signal, AbortSignal.timeout(this.config.timeoutMs)]),
@@ -385,7 +393,26 @@ export default class ModelMetadataService extends Service {
 
     if (!response.ok) throw new Error(`Model catalog request failed: HTTP ${response.status}`)
 
-    const catalog: unknown = await response.json()
+    const maxBytes = 32 * 1024 * 1024
+    const length = Number(response.headers.get('content-length'))
+    if (length > maxBytes) throw new Error('Model catalog exceeds 32 MiB')
+    if (!response.body) throw new Error('Model catalog response has no body')
+    const reader = response.body.getReader()
+    const chunks: Uint8Array[] = []
+    let total = 0
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        total += value.byteLength
+        if (total > maxBytes) throw new Error('Model catalog exceeds 32 MiB')
+        chunks.push(value)
+      }
+    } finally { await reader.cancel().catch(() => {}) }
+    const bytes = new Uint8Array(total)
+    let offset = 0
+    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength }
+    const catalog: unknown = JSON.parse(new TextDecoder().decode(bytes))
 
     if (!catalog || typeof catalog !== 'object' || Array.isArray(catalog)) {
 

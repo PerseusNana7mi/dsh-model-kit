@@ -75,6 +75,17 @@ async function fixture(t) {
 
 const provider = 'gateway.with/slashes'
 
+test('preset protection follows the host directory and ignores unrelated paths', async t => {
+  const { ctx } = await fixture(t)
+  let rows = [{ provider, settingsNs: 'llm-pi-ai', settingsPath: ['other', provider], declared: false }]
+  ctx.provide('llm', { listConfigurableProviders: () => rows })
+  assert.equal(ctx.modelMetadata.readModel(provider, 'm').protectedPreset, false)
+  rows = [{ provider, settingsNs: 'llm-pi-ai', settingsPath: ['providers', provider], declared: false }]
+  assert.equal(ctx.modelMetadata.readModel(provider, 'm').protectedPreset, true)
+  rows = [{ provider, settingsNs: 'llm-pi-ai', settingsPath: ['providers', provider], declared: true }]
+  assert.equal(ctx.modelMetadata.readModel(provider, 'm').protectedPreset, false)
+})
+
 test('host fill reports inactive rates without cancelling the multiplier, then manualMode activates them', async t => {
   const { ctx } = await fixture(t)
   t.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify({ vendor: { models: { m: {

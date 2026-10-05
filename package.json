@@ -1,7 +1,8 @@
 {
   "name": "dsh-model-kit",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Model parameter editing, imports, and native USD/CNY pricing for DeepSeek Harness.",
+  "icon": "./assets/icon.svg",
   "type": "module",
   "license": "MIT",
   "repository": {
@@ -26,12 +27,17 @@
     "./client": {
       "types": "./lib/client/index.d.ts",
       "default": "./lib/client.js"
-    }
+    },
+    "./locale/*.json": "./locale/*.json",
+    "./package.json": "./package.json"
   },
   "files": [
     "lib",
+    "assets/icon.svg",
+    "locale/*.json",
     "cordis.patch.yml",
     "README.md",
+    "README.en.md",
     "LICENSE",
     "docs/README.md",
     "docs/development.md",
@@ -44,7 +50,8 @@
     "THIRD_PARTY_NOTICES.md"
   ],
   "engines": {
-    "node": ">=22.19.0"
+    "node": ">=22.19.0",
+    "dsh": "^0.2.0-rc.2 || ^0.2.1-alpha.1"
   },
   "keywords": [
     "dsh-plugin",
@@ -52,6 +59,7 @@
     "models-dev"
   ],
   "dsh": {
+    "manifestVersion": 1,
     "bundle": {
       "patch": "./cordis.patch.yml"
     },
