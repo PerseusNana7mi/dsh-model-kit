@@ -2,41 +2,70 @@ import { build } from 'esbuild'
 import { createServer } from 'node:http'
 import { mkdir } from 'node:fs/promises'
 import { chromium, expect } from '@playwright/test'
-const result = await build({ entryPoints: ['test/browser-fixture.tsx'], bundle: true, write: false, platform: 'browser', format: 'iife', jsx: 'automatic', loader: { '.css': 'text' } })
+const result = await build({
+  entryPoints: ['test/browser-fixture.tsx'],
+  bundle: true,
+  write: false,
+  platform: 'browser',
+  format: 'iife',
+  jsx: 'automatic',
+  loader: { '.css': 'text' },
+})
 const server = createServer((req, res) => {
   res.setHeader('Content-Type', req.url === '/app.js' ? 'text/javascript' : 'text/html; charset=utf-8')
-  res.end(req.url === '/app.js' ? result.outputFiles[0].text : '<!doctype html><html lang="zh"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Metadata UI test</title><body style="font-family:system-ui;background:#fafafa;color:#26334a"><div id="root"></div><script src="/app.js"></script></body></html>')
+  res.end(
+    req.url === '/app.js'
+      ? result.outputFiles[0].text
+      : '<!doctype html><html lang="zh"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Metadata UI test</title><body style="font-family:system-ui;background:#fafafa;color:#26334a"><div id="root"></div><script src="/app.js"></script></body></html>',
+  )
 })
-await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
+await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
 let browser
 try {
   browser = await chromium.launch({ channel: 'msedge', headless: true })
   const page = await browser.newPage({ viewport: { width: 1100, height: 1000 } })
   const errors = []
-  page.on('pageerror', e => errors.push(e.message))
+  page.on('pageerror', (e) => errors.push(e.message))
   await page.goto(`http://127.0.0.1:${server.address().port}`)
   // Model the real DSH section, not just a full-width block in an isolated page.
-  await page.locator('#root').evaluate(root => { Object.assign(root.style, { display: 'flex', flexDirection: 'column', gap: '12px', maxWidth: '720px', margin: '0 auto', width: '100%' }) })
+  await page.locator('#root').evaluate((root) => {
+    Object.assign(root.style, {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '12px',
+      maxWidth: '720px',
+      margin: '0 auto',
+      width: '100%',
+    })
+  })
   const assertHostWidth = async () => {
-    const bounds = await page.locator('.dmm').evaluate(panel => {
-      const outer = panel.parentElement.getBoundingClientRect(), inner = panel.getBoundingClientRect()
+    const bounds = await page.locator('.dmm').evaluate((panel) => {
+      const outer = panel.parentElement.getBoundingClientRect(),
+        inner = panel.getBoundingClientRect()
       return { outer: outer.width, inner: inner.width, leftGap: inner.left - outer.left }
     })
-    if (Math.abs(bounds.inner - bounds.outer) > 1 || Math.abs(bounds.leftGap) > 1) throw new Error(`Plugin must fill host content: ${JSON.stringify(bounds)}`)
+    if (Math.abs(bounds.inner - bounds.outer) > 1 || Math.abs(bounds.leftGap) > 1)
+      throw new Error(`Plugin must fill host content: ${JSON.stringify(bounds)}`)
   }
   await assertHostWidth()
   // A narrow content column in a wide window must use container breakpoints.
-  await page.locator('#root').evaluate(root => { root.style.maxWidth = '440px' })
+  await page.locator('#root').evaluate((root) => {
+    root.style.maxWidth = '440px'
+  })
   await assertHostWidth()
-  await page.locator('#root').evaluate(root => { root.style.maxWidth = '720px' })
+  await page.locator('#root').evaluate((root) => {
+    root.style.maxWidth = '720px'
+  })
   await page.getByRole('button', { name: '已添加供应商' }).click()
   const providers = page.getByRole('listbox', { name: '已添加供应商' })
-  await providers.selectOption('gateway'); await providers.press('Enter')
+  await providers.selectOption('gateway')
+  await providers.press('Enter')
   await page.getByRole('button', { name: '已配置模型' }).click()
   const modelList = page.getByRole('listbox', { name: '已配置模型' })
   await expect(modelList.locator('option')).toHaveCount(102)
-  const dimensions = await modelList.evaluate(el => ({ height: el.clientHeight, total: el.scrollHeight }))
-  if (dimensions.height > 320 || dimensions.total <= dimensions.height) throw new Error('Model list must have bounded height and scroll')
+  const dimensions = await modelList.evaluate((el) => ({ height: el.clientHeight, total: el.scrollHeight }))
+  if (dimensions.height > 320 || dimensions.total <= dimensions.height)
+    throw new Error('Model list must have bounded height and scroll')
   await modelList.press('End')
   await expect(modelList).toHaveValue(JSON.stringify(['gateway', 'extra-99']))
   await modelList.press('Escape')
@@ -46,18 +75,32 @@ try {
   await modelList.press('Enter')
   await expect(page.getByRole('button', { name: '保存', exact: true })).toBeDisabled()
   await assertHostWidth()
-  await page.locator('#root').evaluate(root => { root.style.maxWidth = '440px' })
-  const modelGridColumns = await page.getByLabel('模型 ID', { exact: true }).evaluate(input => getComputedStyle(input.parentElement.parentElement).gridTemplateColumns.split(' ').length)
+  await page.locator('#root').evaluate((root) => {
+    root.style.maxWidth = '440px'
+  })
+  const modelGridColumns = await page
+    .getByLabel('模型 ID', { exact: true })
+    .evaluate((input) => getComputedStyle(input.parentElement.parentElement).gridTemplateColumns.split(' ').length)
   if (modelGridColumns !== 2) throw new Error('Model ID and display name must share a row in narrow settings pages')
-  await page.locator('#root').evaluate(root => { root.style.maxWidth = '720px'; root.style.zoom = '1.5' })
+  await page.locator('#root').evaluate((root) => {
+    root.style.maxWidth = '720px'
+    root.style.zoom = '1.5'
+  })
   await assertHostWidth()
-  await page.locator('#root').evaluate(root => { root.style.zoom = '1' })
-  const position = () => page.getByLabel('模型 ID', { exact: true }).evaluate(el => ({ y: el.getBoundingClientRect().top, scroll: window.scrollY }))
+  await page.locator('#root').evaluate((root) => {
+    root.style.zoom = '1'
+  })
+  const position = () =>
+    page
+      .getByLabel('模型 ID', { exact: true })
+      .evaluate((el) => ({ y: el.getBoundingClientRect().top, scroll: window.scrollY }))
   const beforeOpen = await position()
   await page.getByRole('button', { name: '已配置模型' }).click()
-  if (JSON.stringify(await position()) !== JSON.stringify(beforeOpen)) throw new Error('Opening model list moved the page')
+  if (JSON.stringify(await position()) !== JSON.stringify(beforeOpen))
+    throw new Error('Opening model list moved the page')
   await modelList.press('Escape')
-  if (JSON.stringify(await position()) !== JSON.stringify(beforeOpen)) throw new Error('Closing model list moved the page')
+  if (JSON.stringify(await position()) !== JSON.stringify(beforeOpen))
+    throw new Error('Closing model list moved the page')
   await page.getByLabel('允许覆盖内置或继承预设参数（仅本次保存）').check()
   await page.getByRole('button', { name: '填入模型信息', exact: true }).click()
   await expect(page.getByRole('button', { name: '参数参考来源' })).not.toBeVisible()
@@ -66,9 +109,10 @@ try {
   await page.getByRole('button', { name: '参数参考来源' }).scrollIntoViewIfNeeded()
   const beforeSource = await position()
   await page.getByRole('button', { name: '参数参考来源' }).click()
-  if (JSON.stringify(await position()) !== JSON.stringify(beforeSource)) throw new Error('Opening source list moved the page')
+  if (JSON.stringify(await position()) !== JSON.stringify(beforeSource))
+    throw new Error('Opening source list moved the page')
   const sources = page.getByRole('listbox', { name: '参数参考来源' })
-  const sourceSize = await sources.evaluate(el => ({ height: el.clientHeight, total: el.scrollHeight }))
+  const sourceSize = await sources.evaluate((el) => ({ height: el.clientHeight, total: el.scrollHeight }))
   if (sourceSize.height > 320 || sourceSize.total <= sourceSize.height) throw new Error('Source list must scroll')
   await sources.press('Escape')
   await expect(page.getByRole('button', { name: '填入此来源的信息' })).toHaveCount(0)
@@ -79,23 +123,43 @@ try {
   await expect(page.getByLabel('定价参考供应商 ID', { exact: true })).toHaveCount(0)
   await page.getByLabel('显示名', { exact: true }).fill('Edited after fill')
   await page.getByText('高级比较', { exact: true }).click()
-  const toolbarLayout = () => page.locator('.dmm-source-review').evaluate(el => {
-    const origin = el.getBoundingClientRect()
-    const bounds = selector => { const r = el.querySelector(selector).getBoundingClientRect(); return { x: r.left - origin.left, y: r.top - origin.top, bottom: r.bottom - origin.top } }
-    return { source: bounds('a.dmm-source'), status: bounds('.dmm-fill-status'), action: bounds('button:first-child'), advanced: bounds('.dmm-source-advanced') }
-  })
+  const toolbarLayout = () =>
+    page.locator('.dmm-source-review').evaluate((el) => {
+      const origin = el.getBoundingClientRect()
+      const bounds = (selector) => {
+        const r = el.querySelector(selector).getBoundingClientRect()
+        return { x: r.left - origin.left, y: r.top - origin.top, bottom: r.bottom - origin.top }
+      }
+      return {
+        source: bounds('a.dmm-source'),
+        status: bounds('.dmm-fill-status'),
+        action: bounds('button:first-child'),
+        advanced: bounds('.dmm-source-advanced'),
+      }
+    })
   const beforeUndo = await toolbarLayout()
   await page.getByRole('button', { name: '撤销本次填入' }).click()
   const afterUndo = await toolbarLayout()
-  if (Math.abs(beforeUndo.source.x - afterUndo.source.x) > 1 || Math.abs(beforeUndo.source.y - afterUndo.source.y) > 1 || afterUndo.status.y >= afterUndo.action.bottom || Math.abs(beforeUndo.advanced.x - afterUndo.advanced.x) > 1) throw new Error(`Undo shifted toolbar rows: ${JSON.stringify({beforeUndo, afterUndo})}`)
+  if (
+    Math.abs(beforeUndo.source.x - afterUndo.source.x) > 1 ||
+    Math.abs(beforeUndo.source.y - afterUndo.source.y) > 1 ||
+    afterUndo.status.y >= afterUndo.action.bottom ||
+    Math.abs(beforeUndo.advanced.x - afterUndo.advanced.x) > 1
+  )
+    throw new Error(`Undo shifted toolbar rows: ${JSON.stringify({ beforeUndo, afterUndo })}`)
   await expect(page.getByLabel('上下文窗口', { exact: true })).toHaveValue('')
   await expect(page.getByLabel('显示名', { exact: true })).toHaveValue('Edited after fill')
   await page.getByLabel('显示名', { exact: true }).fill('Sample model')
   await page.getByRole('button', { name: '填入模型信息', exact: true }).click()
   await expect(page.getByLabel('显示名', { exact: true })).toHaveValue('Sample model')
   await expect(page.getByLabel('上下文窗口', { exact: true })).toHaveValue('128000')
+  await expect(page.getByRole('button', { name: '保存', exact: true })).toBeDisabled()
+  await page.getByLabel('确认最大输出将同时修改每次请求的默认输出上限').check()
   await page.getByRole('button', { name: '保存', exact: true }).hover()
-  await expect(page.getByRole('button', { name: '保存', exact: true })).toHaveCSS('background-color', 'rgb(32, 74, 166)')
+  await expect(page.getByRole('button', { name: '保存', exact: true })).toHaveCSS(
+    'background-color',
+    'rgb(32, 74, 166)',
+  )
   await expect(page.getByRole('button', { name: '保存', exact: true })).toHaveCSS('color', 'rgb(255, 255, 255)')
   await page.getByRole('button', { name: '保存', exact: true }).click()
   await expect(page.getByRole('alert')).toHaveCount(0)
@@ -163,7 +227,10 @@ try {
   await page.setViewportSize({ width: 390, height: 844 })
   const providerBox = await page.getByRole('button', { name: '已添加供应商' }).boundingBox()
   const modelBox = await page.getByRole('button', { name: '已配置模型' }).boundingBox()
-  if (Math.abs(providerBox.y - modelBox.y) > 2) throw new Error(`Provider and model selectors must stay on one compact row: ${JSON.stringify({providerBox, modelBox})}`)
+  if (Math.abs(providerBox.y - modelBox.y) > 2)
+    throw new Error(
+      `Provider and model selectors must stay on one compact row: ${JSON.stringify({ providerBox, modelBox })}`,
+    )
   await assertHostWidth()
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)
   if (overflow) throw new Error('Mobile horizontal overflow')
@@ -172,9 +239,11 @@ try {
   await expect(page.getByRole('alert')).toHaveCount(0)
   await expect(page.locator('.dmm-notice')).toContainText('已重新读取保存值')
   if (errors.length) throw new Error(errors.join('\n'))
-  process.stdout.write('Browser checks passed: metadata preview, guarded save, manual zero, multiplier and mobile layout.\n')
+  process.stdout.write(
+    'Browser checks passed: metadata preview, guarded save, manual zero, multiplier and mobile layout.\n',
+  )
 } finally {
   await browser?.close()
   server.closeAllConnections()
-  await new Promise(resolve => server.close(resolve))
+  await new Promise((resolve) => server.close(resolve))
 }

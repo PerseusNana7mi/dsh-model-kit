@@ -8,7 +8,7 @@
 
 面向 **DSH Desktop 0.2.x（从 0.2.0-rc.2 起）**，在 **设置 → 模型信息助手** 中管理已配置模型。开发测试基线为 `0.2.0-rc.2`；其他宿主版本的完整功能仍需单独验证，详见 [兼容策略](docs/development.md#宿主版本兼容策略)。
 
-<a href="assets/model-kit-ui.png"><img src="assets/model-kit-ui.png" alt="模型信息助手界面：模型参数与参考单价" width="600"></a>
+<a href="https://raw.githubusercontent.com/PerseusNana7mi/dsh-model-kit/2d5ea37/assets/model-kit-ui.png"><img src="https://raw.githubusercontent.com/PerseusNana7mi/dsh-model-kit/2d5ea37/assets/model-kit-ui.png" alt="模型信息助手界面：模型参数与参考单价" width="600"></a>
 
 ## 功能
 

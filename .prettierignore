@@ -1,0 +1,8 @@
+node_modules/
+lib/
+work/
+local-archive/
+package-lock.json
+coverage/
+test-results/
+playwright-report/

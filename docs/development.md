@@ -15,10 +15,12 @@ npm pack
 
 | 命令 | 行为 |
 | --- | --- |
+| `npm run lint` | 检查源码 Promise 处理及 React Hook 规则 |
+| `npm run format:check` | 校验源码、脚本和测试的统一格式；format 命令可修正 |
 | `npm run typecheck` | 通过 tsconfig.test.json 检查源码与 TSX fixture，不输出文件 |
 | `npm run build` | tsc 生成 lib，esbuild 生成压缩的 DSH 客户端入口 |
 | `npm test` | 先构建，再测试 lib 中的实际产物 |
-| `npm run verify` | 类型检查、构建测试、打包文件预检查；会重建 lib |
+| `npm run verify` | lint、格式、类型检查、构建测试、打包文件预检查；只构建一次 lib，pack 预检查跳过生命周期脚本 |
 | `npm run test:ui` | 五组浏览器脚本，部分截图写入 work |
 | `npm pack` | prepack 先构建，仅生成本地 tgz，不等同于 `npm publish` |
 
@@ -65,3 +67,5 @@ DSH rc.2 的 [官方兼容检查器](https://github.com/deepseek-ai/deepseek-har
 2. 行为变化更新对应使用说明或 API 文档；自动化测试结果以实际 CI 运行记录为准。
 3. 不把浏览器 fixture 或模拟测试写成真实 Desktop 验收。
 4. 发布新版本前核对 README 命令、相对链接、源代码行为和许可。
+
+价格草稿的来源失效和数值显示规则集中在 src/client/price-draft.ts。开发依赖锁定 ESLint、typescript-eslint、React Hooks 规则和 Prettier；这些工具不随插件运行。CI 另在 Ubuntu 执行 verify，浏览器布局验收仍在 Windows Edge 上执行。

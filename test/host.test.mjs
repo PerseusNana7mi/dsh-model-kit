@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { Context } from '@deepseek-ai/cordis'
 import Plugin from '../lib/index.js'
 
-test('real Cordis load: schema defaults, lazy fetch, cache and disposal', async t => {
+test('real Cordis load: schema defaults, lazy fetch, cache and disposal', async (t) => {
   let calls = 0
   let signal
   t.mock.method(globalThis, 'fetch', async (_url, options) => {
@@ -34,7 +34,7 @@ test('invalid config fails at load', async () => {
   await fiber.dispose()
 })
 
-test('concurrent refreshes share a bounded catalog download', async t => {
+test('concurrent refreshes share a bounded catalog download', async (t) => {
   const ctx = new Context()
   const fiber = await ctx.plugin(Plugin, {})
   t.after(() => fiber.dispose())
@@ -42,7 +42,9 @@ test('concurrent refreshes share a bounded catalog download', async t => {
   let release
   t.mock.method(globalThis, 'fetch', async () => {
     calls++
-    await new Promise(resolve => { release = resolve })
+    await new Promise((resolve) => {
+      release = resolve
+    })
     return new Response('{}')
   })
   const a = ctx.modelMetadata.refresh()
@@ -54,11 +56,13 @@ test('concurrent refreshes share a bounded catalog download', async t => {
   await assert.rejects(ctx.modelMetadata.refresh(), /32 MiB/)
 })
 
-test('network and malformed catalog failures remain explicit and a subsequent refresh recovers', async t => {
+test('network and malformed catalog failures remain explicit and a subsequent refresh recovers', async (t) => {
   const ctx = new Context()
   const fiber = await ctx.plugin(Plugin, {})
   t.after(() => fiber.dispose())
-  let respond = async () => { throw new Error('offline') }
+  let respond = async () => {
+    throw new Error('offline')
+  }
   t.mock.method(globalThis, 'fetch', (...args) => respond(...args))
   await assert.rejects(ctx.modelMetadata.refresh(), /offline/)
   respond = async () => new Response('{}', { status: 503 })
@@ -69,8 +73,73 @@ test('network and malformed catalog failures remain explicit and a subsequent re
     respond = async () => new Response(JSON.stringify(invalid))
     await assert.rejects(ctx.modelMetadata.refresh(), /provider-keyed/)
   }
-  respond = async () => { throw new DOMException('Timed out', 'TimeoutError') }
+  respond = async () => {
+    throw new DOMException('Timed out', 'TimeoutError')
+  }
   await assert.rejects(ctx.modelMetadata.refresh(), { name: 'TimeoutError' })
   respond = async () => new Response(JSON.stringify({ vendor: { models: { m: { name: 'Recovered' } } } }))
   assert.equal((await ctx.modelMetadata.preview('vendor', { id: 'm' })).proposed.name, 'Recovered')
+})
+
+test('explicit refresh bypasses both caches and native downloads share one request', async (t) => {
+  const ctx = new Context()
+  ctx.provide('settings', { describe: () => [{ ns: 'llm-pi-ai', value: { providers: { vendor: {} } }, revision: 0 }] })
+  const fiber = await ctx.plugin(Plugin, {})
+  t.after(() => fiber.dispose())
+  let price = 1
+  const calls = { model: 0, native: 0 }
+  let release
+  let hold = false
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    const native = url.includes('basellm')
+    calls[native ? 'native' : 'model']++
+    if (native && hold)
+      await new Promise((resolve) => {
+        release = resolve
+      })
+    return new Response(
+      JSON.stringify({
+        vendor: { models: { m: { cost: { input: price, output: 2, ...(native ? { currency: 'CNY' } : {}) } } } },
+      }),
+    )
+  })
+  const service = ctx.modelMetadata
+  assert.equal((await service.recommend('vendor', 'm', 'USD', 'models.dev')).priceQuote.prices.input, 1)
+  price = 9
+  assert.equal((await service.recommend('vendor', 'm', 'USD', 'models.dev')).priceQuote.prices.input, 1)
+  assert.equal((await service.recommend('vendor', 'm', 'USD', 'models.dev', true)).priceQuote.prices.input, 9)
+  hold = true
+  const a = service.recommend('vendor', 'm', 'CNY', 'basellm')
+  const b = service.recommend('vendor', 'm', 'CNY', 'basellm')
+  assert.equal(calls.native, 1)
+  release()
+  await Promise.all([a, b])
+  hold = false
+  price = 12
+  assert.equal((await service.recommend('vendor', 'm', 'CNY', 'basellm')).priceQuote.prices.input, 9)
+  assert.equal((await service.recommend('vendor', 'm', 'CNY', 'basellm', true)).priceQuote.prices.input, 12)
+  assert.equal(calls.native, 2)
+})
+
+test('both native endpoints reject oversized responses and recover after failure', async (t) => {
+  const ctx = new Context()
+  ctx.provide('settings', { describe: () => [{ ns: 'llm-pi-ai', value: { providers: { vendor: {} } }, revision: 0 }] })
+  const fiber = await ctx.plugin(Plugin, {})
+  t.after(() => fiber.dispose())
+  const service = ctx.modelMetadata
+  t.mock.method(globalThis, 'fetch', async (url) =>
+    url.includes('models.dev')
+      ? new Response('{}')
+      : new Response('x', { headers: { 'content-length': String(33 * 1024 * 1024) } }),
+  )
+  await assert.rejects(service.priceReference('vendor', 'm', 'CNY', 'basellm'), /32 MiB/)
+  assert.match((await service.recommend('vendor', 'm', 'CNY', 'basellm')).priceMessage, /32 MiB/)
+  t.mock.method(globalThis, 'fetch', async () => new Response('x'.repeat(33 * 1024 * 1024)))
+  await assert.rejects(service.priceReference('vendor', 'm', 'CNY', 'basellm'), /32 MiB/)
+  t.mock.method(
+    globalThis,
+    'fetch',
+    async () => new Response(JSON.stringify({ models: { m: { cost: { currency: 'CNY', input: 1, output: 2 } } } })),
+  )
+  assert.deepEqual((await service.priceReference('vendor', 'm', 'CNY', 'basellm')).prices, { input: 1, output: 2 })
 })

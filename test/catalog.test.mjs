@@ -2,12 +2,20 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { lookup, preview } from '../lib/core/catalog.js'
 
-const catalog = { vendor: { models: { example: {
-  name: 'Example', limit: { context: 128000, output: 16000 },
-  modalities: { input: ['text', 'image', 'audio'] },
-  reasoning: true, reasoning_options: [{ type: 'effort', values: ['none', 'low', 'high'] }],
-  cost: { input: 0, output: 3, cache_read: 0.2 },
-} } } }
+const catalog = {
+  vendor: {
+    models: {
+      example: {
+        name: 'Example',
+        limit: { context: 128000, output: 16000 },
+        modalities: { input: ['text', 'image', 'audio'] },
+        reasoning: true,
+        reasoning_options: [{ type: 'effort', values: ['none', 'low', 'high'] }],
+        cost: { input: 0, output: 3, cache_read: 0.2 },
+      },
+    },
+  },
+}
 
 test('exact match keeps unknown prices distinct from zero and maps supported fields', () => {
   const result = lookup(catalog, 'vendor', 'example')
@@ -32,10 +40,21 @@ test('preview preserves explicit overrides and does not mutate either input', ()
 })
 
 test('malformed values are omitted and reasoning boolean does not invent levels', () => {
-  const result = lookup({ v: { models: { m: {
-    reasoning: true, limit: { context: -1, output: 2.5 },
-    cost: { input: -3, output: Infinity },
-  } } } }, 'v', 'm')
+  const result = lookup(
+    {
+      v: {
+        models: {
+          m: {
+            reasoning: true,
+            limit: { context: -1, output: 2.5 },
+            cost: { input: -3, output: Infinity },
+          },
+        },
+      },
+    },
+    'v',
+    'm',
+  )
   assert.deepEqual(result.model, { id: 'm' })
   assert.deepEqual(result.prices, {})
   assert.equal(lookup({}, '__proto__', 'x'), undefined)
@@ -45,16 +64,29 @@ test('malformed values are omitted and reasoning boolean does not invent levels'
 test('fill replaces false and empty efforts but preserves concrete efforts and unknown recommendations', () => {
   const match = lookup(catalog, 'vendor', 'example')
   for (const reasoningEfforts of [false, {}, { off: null }]) {
-    assert.deepEqual(preview({ id: 'example', reasoningEfforts }, match).proposed.reasoningEfforts, match.model.reasoningEfforts)
+    assert.deepEqual(
+      preview({ id: 'example', reasoningEfforts }, match).proposed.reasoningEfforts,
+      match.model.reasoningEfforts,
+    )
   }
   const existing = { high: 'custom-high' }
   assert.deepEqual(preview({ id: 'example', reasoningEfforts: existing }, match).proposed.reasoningEfforts, existing)
-  assert.equal(preview({ id: 'example', reasoningEfforts: false }, { provider: 'vendor', model: { id: 'example' }, prices: {} }).proposed.reasoningEfforts, false)
+  assert.equal(
+    preview({ id: 'example', reasoningEfforts: false }, { provider: 'vendor', model: { id: 'example' }, prices: {} })
+      .proposed.reasoningEfforts,
+    false,
+  )
 })
 
 test('fill restores catalog image input without removing already configured image support', () => {
   const match = lookup(catalog, 'vendor', 'example')
   assert.deepEqual(preview({ id: 'example', input: ['text'] }, match).proposed.input, ['text', 'image'])
-  assert.deepEqual(preview({ id: 'example', input: ['text', 'image'] }, { ...match, model: { id: 'example', input: ['text'] } }).proposed.input, ['text', 'image'])
-  assert.deepEqual(preview({ id: 'example', input: ['text'] }, { ...match, model: { id: 'example' } }).proposed.input, ['text'])
+  assert.deepEqual(
+    preview({ id: 'example', input: ['text', 'image'] }, { ...match, model: { id: 'example', input: ['text'] } })
+      .proposed.input,
+    ['text', 'image'],
+  )
+  assert.deepEqual(preview({ id: 'example', input: ['text'] }, { ...match, model: { id: 'example' } }).proposed.input, [
+    'text',
+  ])
 })

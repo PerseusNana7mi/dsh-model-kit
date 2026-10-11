@@ -14,7 +14,7 @@
 
 原生 llm-deepseek / llm-deepseek-account 不在默认 llm-pi-ai 编辑范围。llm-pi-ai 的继承目录通过 modelOverrides 单独编辑，不创建替换列表；内置供应商空 models 数组同样视作继承。
 
-导入使用宿主供应商目录的 declared 标志识别预设；原有模型编辑也加入宿主目录检查，并保留 DeepSeek、OpenCode 等已知路由及缺少 api/baseURL 时的保守保护。界面勾选“允许覆盖”仅对本次保存有效，后端再次校验；价格可独立编辑。未被宿主标明为自定义供应商的路由默认保护。保存保留其他模型、compat 与凭证。
+预设保护只依赖宿主目录的 declared 标志、命名空间和 providers 路径，不再按 DeepSeek、OpenCode 等名称或 api/baseURL 字段猜测。仅匹配目录项且 declared 为 true 时，普通模型参数可直接保存；目录项缺失、路径不匹配或宿主 LLM 服务暂不可用时，保守要求本次覆盖授权。内置目录仍只通过单模型覆盖入口编辑。价格可独立编辑，保存保留其他模型、compat 与凭证。
 
 ## 验证边界
 

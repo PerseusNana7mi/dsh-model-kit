@@ -1,6 +1,10 @@
 /** Prefer the developer's catalog entry only when it is an exact-ID candidate. */
 export function officialProviders(id: string): readonly string[] {
-  const modelId = id.trim().replace(/^models\//i, '').split('/').at(-1)!
+  const modelId = id
+    .trim()
+    .replace(/^models\//i, '')
+    .split('/')
+    .at(-1)!
   const families: [RegExp, string[]][] = [
     [/^(gpt-|chatgpt-|o[134](?:-|$))/i, ['openai']],
     [/^claude-/i, ['anthropic']],
@@ -9,7 +13,7 @@ export function officialProviders(id: string): readonly string[] {
     [/^grok-/i, ['xai']],
     [/^kimi-/i, ['moonshotai', 'moonshotai-cn']],
     [/^qwen/i, ['alibaba', 'alibaba-cn']],
-    [/^glm-/i, ['zhipuai']],
+    [/^glm-/i, ['zai', 'zhipuai']],
     [/^mistral-|^magistral-|^codestral-/i, ['mistral']],
     [/^minimax-/i, ['minimax', 'minimax-cn']],
   ]
@@ -19,7 +23,7 @@ export function officialProviders(id: string): readonly string[] {
 export function officialSource<T extends { provider: string }>(id: string, candidates: T[]): T | undefined {
   const providers = officialProviders(id)
   for (const provider of providers) {
-    const candidate = candidates.find(row => row.provider === provider)
+    const candidate = candidates.find((row) => row.provider === provider)
     if (candidate) return candidate
   }
   return undefined

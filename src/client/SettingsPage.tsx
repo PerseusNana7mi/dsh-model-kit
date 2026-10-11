@@ -28,7 +28,14 @@ export function SettingsPage(props: PanelProps) {
     const observer = new ResizeObserver(resize)
     if (element.parentElement) observer.observe(element.parentElement)
     window.addEventListener('resize', resize)
-    return () => { observer.disconnect(); window.removeEventListener('resize', resize) }
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', resize)
+    }
   }, [])
-  return <div ref={root} className="dmm-settings-page"><Panel {...props}/></div>
+  return (
+    <div ref={root} className="dmm-settings-page">
+      <Panel {...props} />
+    </div>
+  )
 }

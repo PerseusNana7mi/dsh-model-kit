@@ -6,7 +6,7 @@ English | [中文](README.md)
 
 Designed for **DSH Desktop 0.2.x, starting with 0.2.0-rc.2**. The development and integration-test baseline is `0.2.0-rc.2`; other accepted host versions still need separate runtime verification. See the [compatibility policy](docs/development.md#宿主版本兼容策略).
 
-<a href="assets/model-kit-ui.png"><img src="assets/model-kit-ui.png" alt="Model Kit settings page showing model capabilities and reference prices" width="600"></a>
+<a href="https://raw.githubusercontent.com/PerseusNana7mi/dsh-model-kit/2d5ea37/assets/model-kit-ui.png"><img src="https://raw.githubusercontent.com/PerseusNana7mi/dsh-model-kit/2d5ea37/assets/model-kit-ui.png" alt="Model Kit settings page showing model capabilities and reference prices" width="600"></a>
 
 ## Features
 

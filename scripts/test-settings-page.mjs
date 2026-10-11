@@ -2,12 +2,23 @@ import { build } from 'esbuild'
 import { createServer } from 'node:http'
 import { chromium, expect } from '@playwright/test'
 import assert from 'node:assert/strict'
-const result = await build({ entryPoints: ['test/settings-page-fixture.tsx'], bundle: true, write: false, format: 'iife', jsx: 'automatic', loader: { '.css': 'text' } })
+const result = await build({
+  entryPoints: ['test/settings-page-fixture.tsx'],
+  bundle: true,
+  write: false,
+  format: 'iife',
+  jsx: 'automatic',
+  loader: { '.css': 'text' },
+})
 const server = createServer((req, res) => {
   res.setHeader('Content-Type', req.url === '/app.js' ? 'text/javascript' : 'text/html; charset=utf-8')
-  res.end(req.url === '/app.js' ? result.outputFiles[0].text : '<!doctype html><style>body{margin:0}#host{position:fixed;inset:50px 20px 20px;overflow:auto;padding:18px 12px 32px;border:1px solid #ddd;box-sizing:border-box}#root{width:100%;padding-bottom:16px}</style><div id="host"><div id="root"></div></div><script src="/app.js"></script>')
+  res.end(
+    req.url === '/app.js'
+      ? result.outputFiles[0].text
+      : '<!doctype html><style>body{margin:0}#host{position:fixed;inset:50px 20px 20px;overflow:auto;padding:18px 12px 32px;border:1px solid #ddd;box-sizing:border-box}#root{width:100%;padding-bottom:16px}</style><div id="host"><div id="root"></div></div><script src="/app.js"></script>',
+  )
 })
-await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
+await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
 const browser = await chromium.launch({ channel: 'msedge', headless: true })
 try {
   for (const width of [390, 1000]) {
@@ -20,7 +31,8 @@ try {
     const choose = async (name, value) => {
       await page.getByRole('button', { name, exact: true }).click()
       const list = page.getByRole('listbox', { name, exact: true })
-      await list.selectOption(value); await list.press('Enter')
+      await list.selectOption(value)
+      await list.press('Enter')
     }
     await choose('已添加供应商', 'test')
     await choose('已配置模型', JSON.stringify(['test', 'a']))
@@ -45,13 +57,22 @@ try {
     await page.getByText('高级设置', { exact: false }).first().click()
     const nav = await page.locator('.dmm-navigation').boundingBox()
     await page.getByRole('button', { name: '编辑价格', exact: true }).click()
-    await page.locator('.dmm-editor-scroll').evaluate(el => { el.scrollTop = el.scrollHeight })
+    await page.locator('.dmm-editor-scroll').evaluate((el) => {
+      el.scrollTop = el.scrollHeight
+    })
     await choose('已配置模型', JSON.stringify(['test', 'b']))
     await page.waitForFunction(() => !!window.harness.release)
     const assertLayout = async () => {
       const metrics = await page.evaluate(() => {
-        const host = document.querySelector('#host'), editor = document.querySelector('.dmm-editor-scroll')
-        return { hostTop: host.scrollTop, hostHeight: host.clientHeight, hostScroll: host.scrollHeight, pageTop: window.scrollY, editorHeight: editor.clientHeight }
+        const host = document.querySelector('#host'),
+          editor = document.querySelector('.dmm-editor-scroll')
+        return {
+          hostTop: host.scrollTop,
+          hostHeight: host.clientHeight,
+          hostScroll: host.scrollHeight,
+          pageTop: window.scrollY,
+          editorHeight: editor.clientHeight,
+        }
       })
       assert.equal(metrics.hostTop, 0)
       assert.equal(metrics.pageTop, 0)
@@ -82,5 +103,11 @@ try {
     await page.screenshot({ path: `work/settings-page-${width}.png` })
     await page.close()
   }
-  console.log('Dedicated settings page passed: isolated scrolling, fixed navigation, delayed model switch and price collapse.')
-} finally { await browser.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)) }
+  console.log(
+    'Dedicated settings page passed: isolated scrolling, fixed navigation, delayed model switch and price collapse.',
+  )
+} finally {
+  await browser.close()
+  server.closeAllConnections()
+  await new Promise((resolve) => server.close(resolve))
+}

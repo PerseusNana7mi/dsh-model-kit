@@ -25,12 +25,16 @@ export interface Recommendation {
 
 function record(value: unknown): Record<string, unknown> | undefined {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
-    ? value as Record<string, unknown> : undefined
+    ? (value as Record<string, unknown>)
+    : undefined
 }
 
 function number(value: unknown, positive = false): value is number {
-  return typeof value === 'number' && Number.isFinite(value)
-    && (positive ? Number.isSafeInteger(value) && value > 0 : value >= 0)
+  return (
+    typeof value === 'number' &&
+    Number.isFinite(value) &&
+    (positive ? Number.isSafeInteger(value) && value > 0 : value >= 0)
+  )
 }
 
 /** Exact provider + model lookup only: never infer gateway pricing from another provider. */
@@ -62,22 +66,37 @@ export function lookup(catalog: unknown, provider: string, id: string): Recommen
         else if (['minimal', 'low', 'medium', 'high', 'xhigh', 'max'].includes(value)) efforts[value] = value
       }
     }
-    if (Object.keys(efforts).some(key => key !== 'off')) model.reasoningEfforts = efforts
+    if (Object.keys(efforts).some((key) => key !== 'off')) model.reasoningEfforts = efforts
   }
   const prices: Prices = {}
   const cost = record(source.cost)
-  for (const [from, to] of [['input', 'input'], ['output', 'output'], ['cache_read', 'cacheRead'], ['cache_write', 'cacheWrite']] as const) {
+  for (const [from, to] of [
+    ['input', 'input'],
+    ['output', 'output'],
+    ['cache_read', 'cacheRead'],
+    ['cache_write', 'cacheWrite'],
+  ] as const) {
     if (number(cost?.[from])) prices[to] = cost[from]
   }
-  return { provider, model, prices, ...(typeof source.reasoning === 'boolean' ? { reasoningSupported: source.reasoning } : {}) }
+  return {
+    provider,
+    model,
+    prices,
+    ...(typeof source.reasoning === 'boolean' ? { reasoningSupported: source.reasoning } : {}),
+  }
 }
 
-export function shouldFillField(current: ModelFields, suggested: ModelFields, key: keyof Omit<ModelFields, 'id'>): boolean {
+export function shouldFillField(
+  current: ModelFields,
+  suggested: ModelFields,
+  key: keyof Omit<ModelFields, 'id'>,
+): boolean {
   if (suggested[key] === undefined) return false
   if (current[key] === undefined) return true
   if (key === 'input') return !current.input?.includes('image') && suggested.input?.includes('image') === true
   if (key !== 'reasoningEfforts') return false
-  const hasEfforts = (value: ModelFields['reasoningEfforts']) => !!value && Object.keys(value).some(level => level !== 'off')
+  const hasEfforts = (value: ModelFields['reasoningEfforts']) =>
+    !!value && Object.keys(value).some((level) => level !== 'off')
   return !hasEfforts(current.reasoningEfforts) && hasEfforts(suggested.reasoningEfforts)
 }
 
@@ -97,6 +116,7 @@ export function preview(current: ModelFields, recommendation: Recommendation) {
     prices: structuredClone(recommendation.prices),
     changes,
     warnings: changes.includes('maxTokens')
-      ? ['Explicit maxTokens also changes the DSH per-request default output cap.'] : [],
+      ? ['Explicit maxTokens also changes the DSH per-request default output cap.']
+      : [],
   }
 }

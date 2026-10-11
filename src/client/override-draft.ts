@@ -9,12 +9,22 @@ export function overrideDraftModel(base: ModelFields, draft: Record<string, stri
 
 /** Parse the editable representation at the shared boundary used by render and save. */
 export function parseOverrideDraft(draft: Record<string, string>): Partial<ModelFields> {
-  return fields.parse(Object.fromEntries(fieldKeys.filter(key => draft[key]?.trim()).map(key =>
-    [key, key === 'name' ? draft[key] : JSON.parse(draft[key]!)]))) as Partial<ModelFields>
+  return fields.parse(
+    Object.fromEntries(
+      fieldKeys
+        .filter((key) => draft[key]?.trim())
+        .map((key) => [key, key === 'name' ? draft[key] : JSON.parse(draft[key]!)]),
+    ),
+  ) as Partial<ModelFields>
 }
 
 /** Update only fields changed by this recommendation/undo, preserving unrelated edits. */
-export function applyOverrideDraft(base: ModelFields, current: ModelFields, next: ModelFields, draft: Record<string, string>) {
+export function applyOverrideDraft(
+  base: ModelFields,
+  current: ModelFields,
+  next: ModelFields,
+  draft: Record<string, string>,
+) {
   const result = { ...draft }
   for (const key of fieldKeys) {
     if (JSON.stringify(current[key]) === JSON.stringify(next[key])) continue

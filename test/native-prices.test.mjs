@@ -3,11 +3,11 @@ import assert from 'node:assert/strict'
 import { nativePrices } from '../lib/core/native-prices.js'
 import { saveModel, savePrices, saveMultiplier, readPrices } from '../lib/integration/settings.js'
 
-const provider = cost => ({ models: { m: { cost } } })
+const provider = (cost) => ({ models: { m: { cost } } })
 test('native currency selection never mixes lists and rejects complex/subscription prices', () => {
-  const data = provider({ input: 1, output: 2, cache_read: .1, currency_options: { CNY: { input: 7, output: 14 } } })
+  const data = provider({ input: 1, output: 2, cache_read: 0.1, currency_options: { CNY: { input: 7, output: 14 } } })
   assert.deepEqual(nativePrices(data, 'm', 'CNY'), { input: 7, output: 14 })
-  assert.deepEqual(nativePrices(data, 'm', 'USD'), { input: 1, output: 2, cacheRead: .1 })
+  assert.deepEqual(nativePrices(data, 'm', 'USD'), { input: 1, output: 2, cacheRead: 0.1 })
   assert.throws(() => nativePrices(provider({ input: 1, output: 2 }), 'm', 'CNY'))
   for (const extra of [{ schedule: {} }, { tiers: [] }, { reasoning: 3 }]) {
     assert.throws(() => nativePrices(provider({ input: 1, output: 2, ...extra }), 'm', 'USD'))
@@ -17,24 +17,43 @@ test('native currency selection never mixes lists and rejects complex/subscripti
 })
 function settings(value) {
   let rev = 0
-  return { writable: true, describe: () => [{ ns: 'test', value, revision: rev }],
+  return {
+    writable: true,
+    describe: () => [{ ns: 'test', value, revision: rev }],
     mutate: async (_ns, ops, expected) => {
       assert.equal(expected, rev)
-      for (const op of ops) { let node = value; for (const part of op.path.slice(0, -1)) node = node[part]; node[op.path.at(-1)] = op.value }
+      for (const op of ops) {
+        let node = value
+        for (const part of op.path.slice(0, -1)) node = node[part]
+        node[op.path.at(-1)] = op.value
+      }
       rev++
-    } }
+    },
+  }
 }
 test('model save preserves other configured models', async () => {
-  const value = { providers: { 'opencode-go': { api: 'test', baseURL: 'https://example.test', models: [{ id: 'm' }, { id: 'other' }] } } }
+  const value = {
+    providers: {
+      'opencode-go': { api: 'test', baseURL: 'https://example.test', models: [{ id: 'm' }, { id: 'other' }] },
+    },
+  }
   const port = settings(value)
   await saveModel(port, 'test', 'opencode-go', 'm', { name: 'New' }, 0)
   assert.deepEqual(value.providers['opencode-go'].models[1], { id: 'other' })
   await assert.rejects(saveModel(port, 'test', 'opencode-go', 'm', { name: 'Again' }, 0))
 })
 test('malformed stored multiplier stays readable and can switch to manual prices', async () => {
-  const record = { currency: 'USD', unit: 'per-million-tokens', mode: 'multiplier', multiplier: 1e308,
+  const record = {
+    currency: 'USD',
+    unit: 'per-million-tokens',
+    mode: 'multiplier',
+    multiplier: 1e308,
     rates: { input: { value: 7, origin: 'manual', updatedAt: 1 } },
-    reference: { prices: { input: 2, output: 2 }, source: { url: 'https://example.test', provider: 'p', model: 'm', fetchedAt: 1 } } }
+    reference: {
+      prices: { input: 2, output: 2 },
+      source: { url: 'https://example.test', provider: 'p', model: 'm', fetchedAt: 1 },
+    },
+  }
   const port = settings({ prices: { m: record } })
   assert.deepEqual(readPrices(port, 'test', 'm').effective, {})
   const manual = await (await import('../lib/integration/settings.js')).useManualPrices(port, 'test', 'm', 0)
@@ -43,10 +62,21 @@ test('malformed stored multiplier stays readable and can switch to manual prices
 })
 test('currency switch drops old rates/reference and multiplier cannot reuse other-currency manual values', async () => {
   const port = settings({ prices: {} })
-  await savePrices(port, 'test', 'm', { input: 1, output: 2, cacheRead: .1 }, 0)
+  await savePrices(port, 'test', 'm', { input: 1, output: 2, cacheRead: 0.1 }, 0)
   await savePrices(port, 'test', 'm', { input: 7, output: 14 }, 1, undefined, 'CNY')
   assert.deepEqual(readPrices(port, 'test', 'm').effective, { input: 7, output: 14 })
-  await saveMultiplier(port, 'test', 'm', { prices: { input: 3, output: 6 }, source: { url: 'https://example.test', provider: 'p', model: 'm', fetchedAt: 1 } }, 2, 2, 'USD')
+  await saveMultiplier(
+    port,
+    'test',
+    'm',
+    {
+      prices: { input: 3, output: 6 },
+      source: { url: 'https://example.test', provider: 'p', model: 'm', fetchedAt: 1 },
+    },
+    2,
+    2,
+    'USD',
+  )
   const saved = readPrices(port, 'test', 'm')
   assert.equal(saved.record.currency, 'USD')
   assert.deepEqual(saved.record.rates, {})
