@@ -1,6 +1,16 @@
 # dsh-model-kit
 
-[English](README.en.md) | 中文
+<div align="center">
+
+[![简体中文](https://img.shields.io/badge/lang-%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-red)](README.md)
+[![English](https://img.shields.io/badge/lang-English-blue)](README.en.md)
+
+[![npm version](https://img.shields.io/npm/v/dsh-model-kit?style=flat&label=version&color=D97757)](https://www.npmjs.com/package/dsh-model-kit)
+[![monthly downloads](https://img.shields.io/npm/dm/dsh-model-kit?style=flat&label=downloads&color=D97757)](https://www.npmjs.com/package/dsh-model-kit)
+[![dsh.so install · dsh 0.2.1-alpha.2](https://www.dsh.so/badge/install/dsh-model-kit@0.2.1-alpha.2.svg)](https://www.dsh.so/artifact/dsh-model-kit/)
+[![license](https://img.shields.io/badge/license-MIT-2EA44F?style=flat)](LICENSE)
+
+</div>
 
 **DeepSeek Harness 模型信息助手：查询模型参数与参考价格，核对后保存到 DSH。**
 
