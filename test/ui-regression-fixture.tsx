@@ -83,6 +83,22 @@ harness.removeProvider = () => {
   for (const listener of listeners) listener()
 }
 const states = new Map<string, PriceState>()
+if (scenario === 'old-reference' || scenario === 'multiplier')
+  states.set('gpt-a', {
+    revision: 0,
+    effective: scenario === 'multiplier' ? { input: 2, output: 4 } : {},
+    record: {
+      currency: 'USD',
+      unit: 'per-million-tokens',
+      rates: {},
+      mode: scenario === 'multiplier' ? 'multiplier' : 'manual',
+      multiplier: 2,
+      reference: {
+        prices: { input: 1, output: 2 },
+        source: { url: 'https://models.dev/api.json', provider: 'openai', model: 'gpt-a', fetchedAt: 0 },
+      },
+    },
+  })
 if (scenario === 'prices')
   states.set('gpt-a', {
     revision: 0,
@@ -144,6 +160,18 @@ const call = async (r: Request): Promise<Reply> => {
       await new Promise<void>((resolve) => {
         harness.release = resolve
       })
+    if (scenario === 'metadata-failure')
+      return {
+        recommendation: {
+          model: { id: r.id },
+          method: 'none',
+          matches: 0,
+          candidates: [],
+          metadataMessage: '模型参数未获取：Models.dev 暂不可用',
+          priceQuote: quote(r.id),
+          priceMessage: '已获取独立参考价格',
+        },
+      }
     if (scenario === 'official' || scenario === 'unknown-efforts') {
       const reasoning_options =
         scenario === 'official' ? [{ type: 'effort', values: ['low', 'high', 'max'] }] : [{ type: 'toggle' }]
@@ -209,22 +237,35 @@ const call = async (r: Request): Promise<Reply> => {
     state = {
       revision: state.revision + 1,
       effective: Object.fromEntries(Object.entries(rates).map(([key, rate]) => [key, rate!.value])),
-      record: { currency: r.currency ?? 'USD', unit: 'per-million-tokens', mode: 'manual', rates },
+      record: {
+        ...(state.record?.currency === (r.currency ?? 'USD') ? state.record : {}),
+        currency: r.currency ?? 'USD',
+        unit: 'per-million-tokens',
+        mode: 'manual',
+        rates,
+      },
     }
   }
-  if (r.action === 'multiplier')
+  if (r.action === 'multiplier') {
+    const reference = r.reuseSavedReference ? state.record?.reference : quote(r.id)
+    if (!reference) throw new Error('No saved reference')
     state = {
       revision: state.revision + 1,
-      effective: { input: 3 * r.multiplier, output: 15 * r.multiplier },
+      effective: Object.fromEntries(
+        Object.entries(reference.prices)
+          .filter(([, price]) => price !== undefined)
+          .map(([key, price]) => [key, price! * r.multiplier]),
+      ),
       record: {
         currency: r.currency ?? 'USD',
         unit: 'per-million-tokens',
         mode: 'multiplier',
         multiplier: r.multiplier,
-        reference: quote(r.id),
+        reference: { prices: reference.prices, source: reference.source },
         rates: state.record?.rates ?? {},
       },
     }
+  }
   if (r.action === 'manualMode' && state.record)
     state = {
       revision: state.revision + 1,

@@ -68,3 +68,33 @@ test('builtin discovery ignores invalid host limits', async () => {
   ).read('p', 'm')
   assert.deepEqual(snapshot.base, { id: 'm', name: 'Model' })
 })
+
+test('direct host writes enforce the same edit limits before any mutation', async () => {
+  let mutations = 0
+  const value = { providers: { p: { models: [{ id: 'm' }] } }, prices: {} }
+  const port = {
+    writable: true,
+    describe: () => [{ ns: 'n', value, revision: 0 }],
+    mutate: async () => {
+      mutations++
+    },
+  }
+  await assert.rejects(saveModel(port, 'n', 'p', 'm', { name: 'x'.repeat(513) }, 0))
+  await assert.rejects(saveModel(port, 'n', 'p', 'm', { reasoningEfforts: { high: 'x'.repeat(129) } }, 0))
+  await assert.rejects(savePrices(port, 'n', 'm', { input: Number.MAX_VALUE }, 0), /Invalid price/)
+  await assert.rejects(
+    saveMultiplier(
+      port,
+      'n',
+      'm',
+      {
+        prices: { input: 1_000_000_000, output: 2 },
+        source: { url: 'https://example.test', provider: 'p', model: 'm', fetchedAt: 1 },
+      },
+      2,
+      0,
+    ),
+    /overflow/,
+  )
+  assert.equal(mutations, 0)
+})

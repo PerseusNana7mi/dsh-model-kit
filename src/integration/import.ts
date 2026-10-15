@@ -4,6 +4,7 @@ import type Llm from '@deepseek-ai/dsh-llm'
 import { lookup, preview, type ModelFields } from '../core/catalog.js'
 import { object, type SettingsPort } from './settings.js'
 import { catalogCandidates, differences, fieldKeys, type FieldKey } from '../core/diff.js'
+import { MAX_DISCOVERED_MODELS, MAX_MODEL_NAME_LENGTH } from '../core/limits.js'
 
 type LlmPort = Pick<Llm, 'listConfigurableProviders' | 'discoverModels'>
 type Selection = { id: string; catalogProvider?: string | undefined }
@@ -101,12 +102,20 @@ export class ModelImporter {
     }
     const providers = catalog && typeof catalog === 'object' && !Array.isArray(catalog) ? Object.keys(catalog) : []
     const seen = new Set<string>()
+    const existing = new Set(current.models.map((row) => object(row).id))
     const rows: Candidate[] = []
-    for (const item of discovered) {
+    if (discovered.length > MAX_DISCOVERED_MODELS)
+      warning = [
+        warning,
+        `上游返回 ${discovered.length} 个模型，仅展示前 ${MAX_DISCOVERED_MODELS} 项；其余模型请在 DSH 中手动添加`,
+      ]
+        .filter(Boolean)
+        .join('；')
+    for (const item of discovered.slice(0, MAX_DISCOVERED_MODELS)) {
       if (!item.id.trim() || item.id.length > 512 || seen.has(item.id)) continue
       seen.add(item.id)
       const model: ModelFields = { id: item.id }
-      if (item.name && item.name !== item.id) model.name = item.name
+      if (item.name && item.name !== item.id && item.name.length <= MAX_MODEL_NAME_LENGTH) model.name = item.name
       for (const key of ['contextWindow', 'maxTokens'] as const)
         if (Number.isSafeInteger(item[key]) && item[key]! > 0) model[key] = item[key]!
       const input = item.inputModalities?.filter(
@@ -121,7 +130,7 @@ export class ModelImporter {
         )?.provider ?? (candidates.includes(provider) ? provider : candidates.length === 1 ? candidates[0] : undefined)
       rows.push({
         model,
-        existing: current.models.some((row) => object(row).id === item.id),
+        existing: existing.has(item.id),
         candidates,
         details: catalogCandidates(catalog, item.id),
         ...(selected ? { selected } : {}),
@@ -166,13 +175,14 @@ export class ModelImporter {
       const match = selection.catalogProvider
         ? lookup(session.catalog, selection.catalogProvider, selection.id)
         : undefined
+      const previewed = match ? preview(row.model, match) : undefined
       return {
-        model: match ? preview(row.model, match).proposed : structuredClone(row.model),
+        model: previewed?.proposed ?? structuredClone(row.model),
         current: structuredClone(row.model),
         suggested: match?.model ?? structuredClone(row.model),
         differences: differences(row.model, match?.model ?? row.model),
         source: selection.catalogProvider ?? 'upstream',
-        changes: match ? preview(row.model, match).changes : [],
+        changes: previewed?.changes ?? [],
       }
     })
     // A new token binds save to this exact preview even if another client revises its selection.

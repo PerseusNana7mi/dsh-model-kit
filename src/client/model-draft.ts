@@ -1,5 +1,5 @@
 import type { ModelFields } from '../core/catalog.js'
-import { fields } from '../wire.js'
+import { editableFields as fields } from '../wire.js'
 
 export type Draft = {
   name: string

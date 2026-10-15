@@ -1,4 +1,4 @@
-import { fields } from '../wire.js'
+import { editableFields as fields } from '../wire.js'
 import { fieldKeys } from '../core/diff.js'
 import type { ModelFields } from '../core/catalog.js'
 

@@ -13,7 +13,7 @@
 
 | 文档 | 内容 |
 | --- | --- |
-| [开发指南](development.md) | 环境、构建、测试、目录职责和文档维护规则 |
+| [开发指南](development.md) | 环境、构建、测试、目录职责、文档维护规则与后续版本待办 |
 | [Settings 接入](settings.md) | 配置字段、服务 API、写入及报价契约 |
 | [费用接口核查](cost-integration.md) | DSH 0.2.0-rc.2 的统计接口与当前限制 |
 | [参考记录](references.md) | 设计来源、代码归属和 README 结构参考 |

@@ -1,5 +1,7 @@
 import type { SettingsForms, SettingsDescriptor, SettingsPathOp } from '@deepseek-ai/dsh-settings'
 import type { ModelFields, Prices } from '../core/catalog.js'
+import { editableFields } from '../wire.js'
+import { MAX_PRICE } from '../core/limits.js'
 export type SettingsPort = Pick<SettingsForms, 'describe' | 'mutate' | 'writable'>
 export const PRICE_KEYS = ['input', 'output', 'cacheRead', 'cacheWrite'] as const
 const MODEL_KEYS = ['name', 'contextWindow', 'maxTokens', 'input', 'reasoningEfforts'] as const
@@ -105,6 +107,7 @@ export async function saveModel(
 ) {
   if (!settings.writable) throw new Error('Settings are read-only')
   const input = object(patch)
+  editableFields.parse(input)
   for (const key of Object.keys(input)) {
     if (!(MODEL_KEYS as readonly string[]).includes(key) || input[key] === undefined) {
       throw new Error(`Unsupported model edit: ${key}`)
@@ -159,7 +162,8 @@ export async function savePrices(
       !(PRICE_KEYS as readonly string[]).includes(name) ||
       typeof value !== 'number' ||
       !Number.isFinite(value) ||
-      value < 0
+      value < 0 ||
+      value > MAX_PRICE
     ) {
       throw new Error(`Invalid price: ${name}`)
     }
@@ -239,7 +243,10 @@ export async function saveMultiplier(
   }
   for (const key of PRICE_KEYS) {
     const value = reference.prices[key]
-    if (value !== undefined && (!Number.isFinite(value) || value < 0 || !Number.isFinite(value * multiplier))) {
+    if (
+      value !== undefined &&
+      (!Number.isFinite(value) || value < 0 || !Number.isFinite(value * multiplier) || value * multiplier > MAX_PRICE)
+    ) {
       throw new Error('Effective price overflow')
     }
   }

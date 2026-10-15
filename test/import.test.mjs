@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ModelImporter } from '../lib/integration/import.js'
 
-function fixture({ declared = true, inherited = false, failCatalog = false } = {}) {
+function fixture({ declared = true, inherited = false, failCatalog = false, discovered } = {}) {
   let revision = 0
   const stored = {
     providers: {
@@ -39,13 +39,15 @@ function fixture({ declared = true, inherited = false, failCatalog = false } = {
       assert.equal(ns, 'models')
       assert.deepEqual(request, { provider: 'gateway', api: 'openai-completions', baseURL: 'https://example.test/v1' })
       assert.ok(signal)
-      return [
-        { id: 'existing' },
-        { id: 'unique', name: 'unique' },
-        { id: 'ambiguous', contextWindow: 64 },
-        { id: 'unknown' },
-        { id: 'unique' },
-      ]
+      return (
+        discovered ?? [
+          { id: 'existing' },
+          { id: 'unique', name: 'unique' },
+          { id: 'ambiguous', contextWindow: 64 },
+          { id: 'unknown' },
+          { id: 'unique' },
+        ]
+      )
     },
   }
   const catalog = {
@@ -195,4 +197,19 @@ test('concurrent discoveries keep bounded sessions and expired plans do not cons
   await assert.rejects(importer.commit(plan.ticket, false, false), /过期/)
   const fresh = await importer.discover('gateway')
   assert.ok(importer.plan(fresh.ticket, [{ id: 'unknown' }]).ticket)
+})
+
+test('discovery bounds each cached list and reports truncation alongside catalog failure', async () => {
+  const discovered = Array.from({ length: 2100 }, (_, i) => ({ id: `m-${i}` }))
+  discovered[0].name = 'x'.repeat(1000)
+  const { importer } = fixture({ discovered, failCatalog: true })
+  const result = await importer.discover('gateway')
+  assert.equal(result.rows.length, 2000)
+  assert.equal(result.rows.at(-1).model.id, 'm-1999')
+  assert.equal(result.rows[0].model.name, undefined)
+  assert.match(result.warning, /参考目录获取失败/)
+  assert.match(result.warning, /2100.*2000/)
+  assert.throws(() => importer.plan(result.ticket, [{ id: 'm-2000' }]), /上游列表/)
+  const plan = importer.plan(result.ticket, [{ id: 'm-1999' }])
+  assert.equal(plan.rows[0].model.id, 'm-1999')
 })

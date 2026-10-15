@@ -60,3 +60,47 @@ test('schema errors have a concise field diagnostic rather than a JSON issue dum
   assert.ok(message.length < 150)
   assert.equal(message.includes('invalid_union'), false)
 })
+
+test('write boundaries reject oversized fields and rates while legacy reads remain usable', () => {
+  const request = { action: 'model', provider: 'gateway', id: 'm', revision: 0, acceptDefaultOutputCap: false }
+  for (const patch of [{ name: 'x'.repeat(513) }, { reasoningEfforts: { high: 'x'.repeat(129) } }]) {
+    assert.equal(requestSchema.safeParse({ ...request, patch }).success, false)
+    assert.equal(replySchema.safeParse({ model: { id: 'm', ...patch } }).success, true)
+  }
+  assert.equal(
+    requestSchema.safeParse({
+      ...request,
+      patch: { name: 'x'.repeat(512), reasoningEfforts: { high: 'x'.repeat(128) } },
+    }).success,
+    true,
+  )
+  for (const input of [Number.MAX_VALUE, 1_000_000_001]) {
+    assert.equal(
+      requestSchema.safeParse({ action: 'manual', provider: 'gateway', id: 'm', revision: 0, values: { input } })
+        .success,
+      false,
+    )
+    assert.equal(
+      requestSchema.safeParse({
+        action: 'priceDraft',
+        provider: 'gateway',
+        id: 'm',
+        revision: 0,
+        values: { input },
+        quotes: {},
+      }).success,
+      false,
+    )
+    assert.equal(replySchema.safeParse({ prices: { revision: 0, effective: { input } } }).success, true)
+  }
+  assert.equal(
+    requestSchema.safeParse({
+      action: 'manual',
+      provider: 'gateway',
+      id: 'm',
+      revision: 0,
+      values: { input: 1e-12, output: 1_000_000_000 },
+    }).success,
+    true,
+  )
+})

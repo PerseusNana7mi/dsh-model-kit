@@ -188,7 +188,7 @@ try {
   await select('gpt-a')
   await fill()
   await expect(page.getByLabel('上下文窗口', { exact: true })).toHaveValue('128000')
-  await expect(page.locator('.dmm-fill-status')).toContainText('未找到可靠价格')
+  await expect(page.locator('.dmm-fill-status')).toContainText('参考价格存在分歧')
   await expect(page.getByRole('button', { name: '参数参考来源' })).not.toBeVisible()
   await expect(page.locator('.dmm-prices')).not.toContainText('$')
   await save()
@@ -201,8 +201,11 @@ try {
   await expect(page.getByLabel('上下文窗口', { exact: true })).toHaveValue('64000')
   await expect(page.getByLabel('应用上下文窗口', { exact: true })).not.toBeChecked()
   await page.getByLabel('应用上下文窗口', { exact: true }).check()
+  await page.getByLabel('显示名', { exact: true }).fill('Manual name during comparison')
+  await expect(page.getByLabel('应用上下文窗口', { exact: true })).toBeChecked()
   await page.getByRole('button', { name: '应用选中差异到草稿' }).click()
   await expect(page.getByLabel('上下文窗口', { exact: true })).toHaveValue('128000')
+  await expect(page.getByRole('button', { name: '应用选中差异到草稿' })).toBeDisabled()
   await save()
   assert.equal(
     await page.evaluate(() => window.harness.calls.find((r) => r.action === 'model').patch.contextWindow),
@@ -215,6 +218,13 @@ try {
   await page.getByRole('button', { name: '编辑价格', exact: true }).click()
   await expect(page.getByLabel('输入', { exact: true })).toHaveValue('10')
   await page.getByLabel('定价模式').selectOption('multiplier')
+  await page.getByLabel('统一倍率').fill('')
+  await expect(page.locator('.dmm-prices strong')).toHaveText(['未知', '未知', '未知', '未知'])
+  await save()
+  await expect(page.getByRole('alert')).toContainText('请输入倍率')
+  assert.equal(await page.evaluate(() => window.harness.calls.some((r) => r.action === 'multiplier')), false)
+  await page.getByLabel('统一倍率').fill('0')
+  await expect(page.locator('.dmm-prices strong')).toHaveText(['$0', '$0', '未知', '未知'])
   await page.getByLabel('统一倍率').fill('2')
   await expect(page.locator('.dmm-prices')).toContainText('$6')
   await expect(page.locator('.dmm-prices')).toContainText('$30')
@@ -229,6 +239,56 @@ try {
   await save()
   await expect(page.locator('.dmm-prices')).toContainText('$10')
   await expect(page.locator('.dmm-prices')).toContainText('$20')
+
+  // Direct prices retain the fresh quote, even when an older multiplier reference exists.
+  await open('old-reference')
+  await select('gpt-a')
+  await page.getByRole('button', { name: '编辑价格', exact: true }).click()
+  await page.getByRole('button', { name: '重新获取参考单价' }).click()
+  await save()
+  await expect(page.getByRole('button', { name: '保存', exact: true })).toBeDisabled()
+  assert.equal(await page.evaluate(() => window.harness.saved['gpt-a'].record.reference.prices.input), 1)
+  await page.getByLabel('定价模式').selectOption('multiplier')
+  await expect(page.locator('.dmm-prices')).toContainText('$6')
+  await expect(page.locator('.dmm-prices')).toContainText('$30')
+  await save()
+  assert.equal(
+    await page.evaluate(() => window.harness.calls.find((r) => r.action === 'multiplier').quoteTicket),
+    'quote-gpt-a',
+  )
+  assert.equal(await page.evaluate(() => window.harness.saved['gpt-a'].record.reference.prices.input), 3)
+
+  // An external price edit must not turn a model-only save into a stale multiplier write.
+  await open('multiplier')
+  await select('gpt-a')
+  await page.evaluate(() => window.harness.changePrice())
+  await page.getByLabel('显示名', { exact: true }).fill('Only rename')
+  await save()
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  assert.deepEqual(
+    await page.evaluate(() =>
+      window.harness.calls
+        .filter((r) => ['model', 'priceDraft', 'multiplier', 'manualMode'].includes(r.action))
+        .map((r) => r.action),
+    ),
+    ['model'],
+  )
+  assert.equal(await page.evaluate(() => window.harness.saved['gpt-a'].effective.input), 99)
+
+  await open('unpriced')
+  await select('gpt-a')
+  await page.getByRole('button', { name: '编辑价格', exact: true }).click()
+  await page.getByRole('button', { name: '重新获取参考单价' }).click()
+  await expect(page.locator('.dmm-save-bar [role="status"]')).toContainText('参考价格存在分歧，未自动填价')
+
+  await open('metadata-failure')
+  await select('gpt-a')
+  await fill()
+  await expect(page.locator('.dmm-fill-status')).toContainText('参数未获取 · 已获取价格')
+  await expect(page.locator('.dmm-fill-status')).toHaveAttribute('title', /Models.dev 暂不可用/)
+  await expect(page.getByLabel('上下文窗口', { exact: true })).toHaveValue('')
+  await save()
+  assert.equal(await page.evaluate(() => window.harness.saved['gpt-a'].effective.input), 3)
 
   await open()
   await select('gpt-a')

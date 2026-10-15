@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type { InvocationDescriptor, RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 import { PACKAGE_NAME } from './package-identity.js'
+import { MAX_MODEL_NAME_LENGTH, MAX_EFFORT_VALUE_LENGTH, MAX_PRICE } from './core/limits.js'
 
 const id = z.string().trim().min(1).max(512)
 const quoteFields = z
@@ -43,6 +44,24 @@ export const fields = z
       .optional(),
   })
   .strict()
+/** Limit new edits without making old configuration impossible to read. */
+export const editableFields = fields.superRefine((value, ctx) => {
+  if (value.name && value.name.length > MAX_MODEL_NAME_LENGTH)
+    ctx.addIssue({ code: 'custom', path: ['name'], message: `Name exceeds ${MAX_MODEL_NAME_LENGTH} characters` })
+  if (value.reasoningEfforts)
+    for (const [key, effort] of Object.entries(value.reasoningEfforts))
+      if (effort && effort.length > MAX_EFFORT_VALUE_LENGTH)
+        ctx.addIssue({
+          code: 'custom',
+          path: ['reasoningEfforts', key],
+          message: `Effort value exceeds ${MAX_EFFORT_VALUE_LENGTH} characters`,
+        })
+})
+const editablePrices = prices.superRefine((value, ctx) => {
+  for (const [key, amount] of Object.entries(value))
+    if (amount !== undefined && amount > MAX_PRICE)
+      ctx.addIssue({ code: 'custom', path: [key], message: `Price exceeds ${MAX_PRICE}` })
+})
 const currency = z.enum(['USD', 'CNY']).default('USD')
 const pricingSource = z.enum(['models.dev', 'basellm']).default('models.dev')
 const target = { provider: id, id }
@@ -82,7 +101,7 @@ export const requestSchema = z.discriminatedUnion('action', [
     .object({
       action: z.literal('builtinWrite'),
       ...target,
-      patch: fields,
+      patch: editableFields,
       reset: z.array(fieldKey),
       revision,
       allowPresetOverride: z.boolean(),
@@ -120,16 +139,23 @@ export const requestSchema = z.discriminatedUnion('action', [
     .object({
       action: z.literal('model'),
       ...target,
-      patch: fields,
+      patch: editableFields,
       revision,
       acceptDefaultOutputCap: z.boolean(),
       allowPresetOverride: z.boolean().default(false),
     })
     .strict(),
   z
-    .object({ action: z.literal('priceDraft'), ...target, values: prices, quotes: quoteFields, currency, revision })
+    .object({
+      action: z.literal('priceDraft'),
+      ...target,
+      values: editablePrices,
+      quotes: quoteFields,
+      currency,
+      revision,
+    })
     .strict(),
-  z.object({ action: z.literal('manual'), ...target, values: prices, currency, revision }).strict(),
+  z.object({ action: z.literal('manual'), ...target, values: editablePrices, currency, revision }).strict(),
   z.object({ action: z.literal('fill'), ...target, catalogProvider: id, currency, pricingSource, revision }).strict(),
   z
     .object({
@@ -204,6 +230,7 @@ export const replySchema = z.object({
       candidates: z.array(candidate),
       priceCandidates: z.array(z.object({ provider: id, name: z.string(), model: id })).optional(),
       priceMessage: z.string(),
+      metadataMessage: z.string().optional(),
       priceQuote: quote.optional(),
     })
     .optional(),

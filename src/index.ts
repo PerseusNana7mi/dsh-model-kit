@@ -2,6 +2,8 @@ import { fetchJson } from './core/fetch-json.js'
 import { recommendCatalog } from './core/recommend.js'
 import { randomUUID } from 'node:crypto'
 import { nativePrices } from './core/native-prices.js'
+import { BASELLM_CATALOG_URL, basellmProviderUrl } from './core/sources.js'
+import { readableError } from './core/errors.js'
 import { ModelImporter } from './integration/import.js'
 import { ModelOverrides } from './integration/overrides.js'
 import { catalogCandidates } from './core/diff.js'
@@ -183,10 +185,7 @@ export default class ModelMetadataService extends Service {
     this.readModel(provider, id)
     const saved = this.readPrices(provider, id).record
     const prior = saved?.currency === currency ? saved.reference : undefined
-    const url =
-      pricingSource === 'models.dev'
-        ? this.config.catalogUrl
-        : `https://basellm.github.io/llm-metadata/api/providers/${referenceProvider}.json`
+    const url = pricingSource === 'models.dev' ? this.config.catalogUrl : basellmProviderUrl(referenceProvider)
     const reference = quoteTicket
       ? this.readQuote(quoteTicket, currency, id)
       : reuseSavedReference
@@ -196,10 +195,7 @@ export default class ModelMetadataService extends Service {
     if (
       reference.source.provider !== referenceProvider ||
       reference.source.model !== referenceModel ||
-      (reference.source.url !== url &&
-        !(
-          pricingSource === 'basellm' && reference.source.url === 'https://basellm.github.io/llm-metadata/api/all.json'
-        ))
+      (reference.source.url !== url && !(pricingSource === 'basellm' && reference.source.url === BASELLM_CATALOG_URL))
     )
       throw new Error('报价来源已变化，请重新获取参考单价')
     return saveMultiplier(
@@ -286,13 +282,25 @@ export default class ModelMetadataService extends Service {
       ...(route.displayName ? { name: route.displayName } : {}),
       ...(route.baseURL ? { baseURL: route.baseURL } : {}),
     }
-    if (forceRefresh || !this.catalog || Date.now() - this.fetchedAt >= this.config.cacheTtlMs) await this.refresh()
-    const metadata = recommendCatalog(this.catalog, id, hints)
+    let metadataCatalog = this.catalog
+    let metadataMessage: string | undefined
+    try {
+      if (forceRefresh || !this.catalog || Date.now() - this.fetchedAt >= this.config.cacheTtlMs) await this.refresh()
+      metadataCatalog = this.catalog
+    } catch (error) {
+      if (pricingSource !== 'basellm') throw error
+      // A failed refresh must not silently adopt stale metadata, nor block the
+      // independent native-currency price source.
+      metadataCatalog = undefined
+      metadataMessage = `模型参数未获取：${readableError(error)}`
+    }
+    const metadata = recommendCatalog(metadataCatalog, id, hints)
     const result = {
       model: metadata.model,
       method: metadata.method,
       matches: metadata.matches,
       candidates: metadata.candidates,
+      ...(metadataMessage ? { metadataMessage } : {}),
       ...(metadata.officialProviders
         ? { officialProviders: metadata.officialProviders, officialWeight: metadata.officialWeight }
         : {}),
@@ -304,7 +312,7 @@ export default class ModelMetadataService extends Service {
         fetchedAt = this.fetchedAt,
         url = this.config.catalogUrl
       if (pricingSource === 'basellm') {
-        url = 'https://basellm.github.io/llm-metadata/api/all.json'
+        url = BASELLM_CATALOG_URL
         if (
           forceRefresh ||
           !this.nativeCatalog ||
@@ -358,7 +366,7 @@ export default class ModelMetadataService extends Service {
     } catch (error) {
       return {
         ...result,
-        priceMessage: `参数已查询；参考价格未获取：${error instanceof Error ? error.message : String(error)}`,
+        priceMessage: `参考价格未获取：${readableError(error)}`,
       }
     }
   }
@@ -394,8 +402,7 @@ export default class ModelMetadataService extends Service {
   }
   async priceReference(provider: string, id: string, currency: Currency, pricingSource: string) {
     if (pricingSource === 'basellm') {
-      if (!/^[a-z0-9][a-z0-9-]*$/.test(provider)) throw new Error('Invalid reference provider ID')
-      const url = `https://basellm.github.io/llm-metadata/api/providers/${provider}.json`
+      const url = basellmProviderUrl(provider)
       const data = await fetchJson(url, this.requestSignal(), 'basellm')
       return { prices: nativePrices(data, id, currency), source: { url, provider, model: id, fetchedAt: Date.now() } }
     }
@@ -417,11 +424,7 @@ export default class ModelMetadataService extends Service {
   private async refreshNative() {
     if (this.nativePending) return this.nativePending
     const pending = (async () => {
-      const data = await fetchJson(
-        'https://basellm.github.io/llm-metadata/api/all.json',
-        this.requestSignal(),
-        'basellm',
-      )
+      const data = await fetchJson(BASELLM_CATALOG_URL, this.requestSignal(), 'basellm')
       if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Invalid basellm catalog')
       return { data, fetchedAt: Date.now() }
     })()

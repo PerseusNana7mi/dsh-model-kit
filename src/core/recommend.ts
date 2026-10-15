@@ -139,13 +139,20 @@ export function recommendCatalog(
         .filter(Boolean)
         .some((expected) => hostname === expected || hostname.endsWith(`.${expected}`)),
   )
+  // User-editable names must not override contradictory endpoint evidence.
+  const routed = byUrl.length
+    ? byProvider.length
+      ? byUrl.filter((entry) => byProvider.includes(entry))
+      : byUrl
+    : byProvider
+  const routeConflict = (byUrl.length > 0 && byProvider.length > 0 && !routed.length) || routed.length > 1
   // Prefer official evidence in the vote, without discarding other providers.
   const official = officialProviders(id).filter((provider) => unique.some((entry) => entry.provider === provider))
   const reasoningSource =
     byProvider.find((entry) => official.includes(entry.provider)) ??
     byUrl.find((entry) => official.includes(entry.provider)) ??
     officialSource(id, unique)
-  const chosen = official.length ? undefined : (byProvider[0] ?? byUrl[0])
+  const chosen = official.length || routeConflict ? undefined : routed[0]
   const method = official.length
     ? ('weighted-consensus' as const)
     : chosen
@@ -170,9 +177,18 @@ export function recommendCatalog(
   const reasoningSupported =
     chosen?.reasoningSupported ?? weightedValue(unique, official, (entry) => entry.reasoningSupported)
   const priced = unique.filter((entry) => entry.prices)
-  const direct = byProvider.find((entry) => entry.prices) ?? byUrl.find((entry) => entry.prices)
+  const direct = !routeConflict && routed.length === 1 && routed[0]?.prices ? routed[0] : undefined
   let price: PriceRecommendation
-  if (direct)
+  if (routeConflict)
+    price = {
+      status: 'unreliable',
+      method: 'none',
+      support: 0,
+      total: priced.length,
+      contributors: [],
+      reason: 'conflict',
+    }
+  else if (direct)
     price = {
       status: 'reliable',
       method: byProvider.includes(direct) ? 'provider' : 'base-url',

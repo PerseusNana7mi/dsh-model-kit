@@ -27,3 +27,19 @@ test('quote invalidation preserves manual and saved rates and formats small pric
   assert.equal(formatPrice(1e-12, 'CNY'), '¥0.000000000001')
   assert.equal(formatPrice(Infinity, 'USD'), '未知')
 })
+
+test('multiplier previews distinguish incomplete drafts, zero and unknown reference prices', async () => {
+  const { previewMultipliedPrice, formatPrice } = await import('../lib/client/price-draft.js')
+  for (const draft of ['', '   ', '-', '1e', 'invalid', 'Infinity', '-1']) {
+    assert.equal(previewMultipliedPrice(3, draft), undefined, draft)
+    assert.equal(previewMultipliedPrice(0, draft), undefined, draft)
+  }
+  assert.equal(formatPrice(previewMultipliedPrice(3, ''), 'USD'), '未知')
+  assert.equal(previewMultipliedPrice(3, '0'), 0)
+  assert.equal(previewMultipliedPrice(undefined, '0'), undefined)
+  assert.equal(previewMultipliedPrice(3, '0.5'), 1.5)
+  assert.equal(previewMultipliedPrice(3, '2'), 6)
+  assert.equal(previewMultipliedPrice(1, '1000000000'), 1_000_000_000)
+  assert.equal(previewMultipliedPrice(3, '1000000000'), undefined)
+  assert.equal(previewMultipliedPrice(3, '1e308'), undefined)
+})

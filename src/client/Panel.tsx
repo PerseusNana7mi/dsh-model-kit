@@ -1,4 +1,4 @@
-import { withoutQuotes, formatPrice, type PriceInputs } from './price-draft.js'
+import { withoutQuotes, formatPrice, previewMultipliedPrice, type PriceInputs } from './price-draft.js'
 import { readableError } from '../core/errors.js'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { BuiltinPanel } from './BuiltinPanel.js'
@@ -87,24 +87,14 @@ export function Panel({ call, subscribeChanges }: PanelProps) {
       setPriceDraft(false)
       priceGeneration.current++
       const record = reply.prices.record
-      const origin =
-        (record?.mode === 'multiplier'
-          ? record.reference?.source
-          : Object.values(record?.rates ?? {}).find((rate) => rate?.source)?.source) ?? record?.reference?.source
-      const reference = record?.reference
-      const matchesOrigin = (value: Quote | undefined) =>
-        value &&
-        (!origin ||
-          (value.source.url === origin.url &&
-            value.source.provider === origin.provider &&
-            value.source.model === origin.model))
-      setQuote(
-        matchesOrigin(reference)
-          ? reference
-          : !includeModel && record?.currency === currency && matchesOrigin(quote)
-            ? quote
-            : undefined,
-      )
+      // A direct-price save must not replace a freshly fetched quote with the
+      // older reference retained for switching back to multiplier mode.
+      const nextQuote =
+        !includeModel && record?.mode !== 'multiplier' && record?.currency === currency && quote
+          ? quote
+          : record?.reference
+      const origin = nextQuote?.source ?? Object.values(record?.rates ?? {}).find((rate) => rate?.source)?.source
+      setQuote(nextQuote)
       setSource(origin?.provider ?? (includeModel ? '' : source))
       setReferenceModel(origin?.model ?? (includeModel ? (target?.id ?? '') : referenceModel))
       setPricingSource(
@@ -248,7 +238,7 @@ export function Panel({ call, subscribeChanges }: PanelProps) {
     setPriceCandidates(result.priceCandidates ?? [])
     if (result.priceQuote) receiveQuote(result.priceQuote)
     else invalidateQuote()
-    setNotice(showNotice ? (result.priceQuote ? result.priceMessage : '未找到可靠价格') : '')
+    setNotice(showNotice ? [result.metadataMessage, result.priceMessage].filter(Boolean).join('；') : '')
   }
   async function fillPricing(catalogProvider: string, modelId = target?.id) {
     if (!target || !modelId) return
@@ -298,7 +288,7 @@ export function Panel({ call, subscribeChanges }: PanelProps) {
     return reply
   }
   function pricingRequest(): Request | undefined {
-    if (!target || !priceState) return
+    if (!priceDraft || !target || !priceState) return
     if (
       currency !== (priceState.record?.currency ?? 'USD') &&
       mode === 'manual' &&
@@ -571,9 +561,7 @@ export function Panel({ call, subscribeChanges }: PanelProps) {
                 {keys.map((key, i) => {
                   const value = priceDraft
                     ? mode === 'multiplier'
-                      ? quote?.prices[key] === undefined
-                        ? undefined
-                        : quote.prices[key]! * Number(multiplier)
+                      ? previewMultipliedPrice(quote?.prices[key], multiplier)
                       : manual[key]?.trim()
                         ? Number(manual[key])
                         : priceState?.record?.currency === currency
@@ -847,9 +835,7 @@ export function Panel({ call, subscribeChanges }: PanelProps) {
                     ? notice
                     : modelChanged || priceDraft
                       ? '有未保存的更改'
-                      : notice === '已保存模型参数和定价。'
-                        ? '已保存'
-                        : '暂无更改'}
+                      : '暂无更改'}
         </span>
         <button
           className="dmm-primary"

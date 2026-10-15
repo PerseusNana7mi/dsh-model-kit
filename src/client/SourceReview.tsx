@@ -72,11 +72,19 @@ export function SourceReview({
   const candidate = candidates.find((row) => candidateKey(row) === source)
   const suggestion = candidate?.model ?? automatic
   const rows = suggestion ? differences(current, suggestion as ModelFields) : []
-  const signature = JSON.stringify(rows)
+  // The user's choices belong to the suggestion, not the changing draft.
+  const signature = JSON.stringify(suggestion ?? null)
   useEffect(() => {
-    const snapshot = JSON.parse(signature) as ReturnType<typeof differences>
-    setSelected(snapshot.filter((row) => row.selected).map((row) => row.key))
+    const snapshot = JSON.parse(signature) as ModelFields | null
+    setSelected(
+      snapshot
+        ? differences(latest.current, snapshot)
+            .filter((row) => row.selected)
+            .map((row) => row.key)
+        : [],
+    )
   }, [signature, source])
+  const applicableSelected = selected.filter((key) => rows.some((row) => row.key === key))
   async function recommend() {
     const request = ++generation.current
     callbacks.current.onStart?.()
@@ -102,8 +110,10 @@ export function SourceReview({
         consensus: '多来源一致性匹配',
         none: '没有匹配的模型',
       }
-      setDetail(`${methods[result.method]} · ${result.priceMessage}`)
-      setNotice(`${count ? `补全 ${count} 项` : '参数保留'} · ${result.priceQuote ? '已获取价格' : '未找到可靠价格'}`)
+      setDetail([result.metadataMessage, methods[result.method], result.priceMessage].filter(Boolean).join(' · '))
+      setNotice(
+        `${result.metadataMessage ? '参数未获取' : count ? `补全 ${count} 项` : '参数保留'} · ${result.priceQuote ? '已获取价格' : result.priceMessage}`,
+      )
     } catch (e) {
       if (request === generation.current) setError(readableError(e))
     } finally {
@@ -193,14 +203,14 @@ export function SourceReview({
               />
             </fieldset>
           )}
-          <FieldDiff rows={rows} selected={selected} onChange={setSelected} />
+          <FieldDiff rows={rows} selected={applicableSelected} onChange={setSelected} />
           <button
             type="button"
-            disabled={!selected.length || busy}
+            disabled={!applicableSelected.length || busy}
             onClick={() => {
               if (!suggestion) return
               const next = structuredClone(latest.current)
-              for (const key of selected) Object.assign(next, { [key]: suggestion[key] })
+              for (const key of applicableSelected) Object.assign(next, { [key]: suggestion[key] })
               callbacks.current.onApply(next)
             }}
           >

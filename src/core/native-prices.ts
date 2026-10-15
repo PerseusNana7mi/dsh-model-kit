@@ -1,5 +1,6 @@
 import type { Prices } from './catalog.js'
 import type { Currency } from '../integration/settings.js'
+import { MAX_PRICE } from './limits.js'
 function row(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid pricing data')
   return value as Record<string, unknown>
@@ -36,7 +37,8 @@ export function nativePrices(provider: unknown, id: string, currency: Currency):
   })) {
     const value = selected[source]
     if (value === undefined) continue
-    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) throw new Error('Invalid native price')
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > MAX_PRICE)
+      throw new Error('Invalid native price')
     Object.assign(result, { [target]: value })
   }
   if (result.input === undefined || result.output === undefined)

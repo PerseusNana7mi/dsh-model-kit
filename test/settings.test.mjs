@@ -945,3 +945,49 @@ test('blank display names fall back to the ID in navigation', async (t) => {
   await ctx.modelMetadata.saveModel(provider, 'm', { name: '' }, snapshot.revision)
   assert.equal(ctx.modelMetadata.listModels().find((row) => row.id === 'm').name, 'm')
 })
+
+test('legacy oversized values remain readable and can be corrected through real Settings', async (t) => {
+  const { ctx } = await fixture(t)
+  await ctx.settings.mutate(
+    'llm-pi-ai',
+    [{ op: 'set', path: ['providers', provider, 'models', 0, 'name'], value: 'x'.repeat(513) }],
+    ctx.modelMetadata.readModel(provider, 'm').revision,
+  )
+  const key = JSON.stringify(['llm-pi-ai', provider, 'm'])
+  await ctx.settings.mutate(
+    'model-metadata',
+    [
+      {
+        op: 'set',
+        path: ['prices', key],
+        value: {
+          currency: 'USD',
+          unit: 'per-million-tokens',
+          mode: 'manual',
+          rates: { input: { value: Number.MAX_VALUE, origin: 'manual', updatedAt: 1 } },
+        },
+      },
+    ],
+    ctx.modelMetadata.readPrices(provider, 'm').revision,
+  )
+  const loaded = await ctx.modelMetadataUi.execute({ action: 'read', provider, id: 'm' })
+  assert.equal(loaded.model.name.length, 513)
+  assert.equal(loaded.prices.effective.input, Number.MAX_VALUE)
+  await ctx.modelMetadataUi.execute({
+    action: 'model',
+    provider,
+    id: 'm',
+    patch: { name: 'Corrected' },
+    revision: loaded.revision,
+    acceptDefaultOutputCap: false,
+  })
+  const corrected = await ctx.modelMetadataUi.execute({
+    action: 'manual',
+    provider,
+    id: 'm',
+    values: { input: 3 },
+    revision: loaded.prices.revision,
+  })
+  assert.equal(corrected.model.name, 'Corrected')
+  assert.equal(corrected.prices.effective.input, 3)
+})

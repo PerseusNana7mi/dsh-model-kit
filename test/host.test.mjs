@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Context } from '@deepseek-ai/cordis'
 import Plugin from '../lib/index.js'
+import { replySchema } from '../lib/wire.js'
 
 test('real Cordis load: schema defaults, lazy fetch, cache and disposal', async (t) => {
   let calls = 0
@@ -142,4 +143,46 @@ test('both native endpoints reject oversized responses and recover after failure
     async () => new Response(JSON.stringify({ models: { m: { cost: { currency: 'CNY', input: 1, output: 2 } } } })),
   )
   assert.deepEqual((await service.priceReference('vendor', 'm', 'CNY', 'basellm')).prices, { input: 1, output: 2 })
+})
+
+test('native prices survive metadata failure without adopting stale model parameters', async (t) => {
+  const ctx = new Context()
+  ctx.provide('settings', { describe: () => [{ ns: 'llm-pi-ai', value: { providers: { vendor: {} } }, revision: 0 }] })
+  const fiber = await ctx.plugin(Plugin, {})
+  t.after(() => fiber.dispose())
+  let metadataOffline = false
+  let pricesOffline = false
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    if (url.includes('models.dev')) {
+      if (metadataOffline) throw new Error('metadata offline')
+      return new Response(JSON.stringify({ vendor: { models: { m: { limit: { context: 64000 } } } } }))
+    }
+    if (pricesOffline) throw new Error('prices offline')
+    return new Response(
+      JSON.stringify({ vendor: { models: { m: { cost: { currency: 'CNY', input: 8, output: 24 } } } } }),
+    )
+  })
+  const service = ctx.modelMetadata
+  metadataOffline = true
+  const cold = replySchema.parse({ recommendation: await service.recommend('vendor', 'm', 'CNY', 'basellm') })
+  assert.deepEqual(cold.recommendation.model, { id: 'm' })
+  assert.deepEqual(cold.recommendation.priceQuote.prices, { input: 8, output: 24 })
+  assert.match(cold.recommendation.metadataMessage, /metadata offline/)
+  metadataOffline = false
+  assert.equal((await service.recommend('vendor', 'm', 'CNY', 'basellm', true)).model.contextWindow, 64000)
+  metadataOffline = true
+  const refreshed = await service.recommend('vendor', 'm', 'CNY', 'basellm', true)
+  assert.equal(refreshed.model.contextWindow, undefined)
+  assert.equal(refreshed.priceQuote.prices.input, 8)
+  pricesOffline = true
+  const failed = await service.recommend('vendor', 'm', 'CNY', 'basellm', true)
+  assert.match(failed.metadataMessage, /metadata offline/)
+  assert.match(failed.priceMessage, /prices offline/)
+  assert.equal(failed.priceQuote, undefined)
+  await assert.rejects(service.recommend('vendor', 'm', 'USD', 'models.dev', true), /metadata offline/)
+  metadataOffline = false
+  const metadataOnly = await service.recommend('vendor', 'm', 'CNY', 'basellm', true)
+  assert.equal(metadataOnly.model.contextWindow, 64000)
+  assert.equal(metadataOnly.metadataMessage, undefined)
+  assert.match(metadataOnly.priceMessage, /prices offline/)
 })

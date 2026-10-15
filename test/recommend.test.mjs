@@ -108,6 +108,33 @@ test('unknown gateways get independent field and price consensus without choosin
   ])
 })
 
+test('conflicting name and endpoint evidence requires an explicit price source', () => {
+  const catalog = {
+    openai: route(model(10, 20), 'OpenAI', 'https://api.openai.com/v1'),
+    gateway: route(model(1, 2), 'Gateway', 'https://gateway.example/v1'),
+  }
+  for (const hints of [
+    { provider: 'custom', name: 'OpenAI', baseURL: 'https://gateway.example/v1' },
+    { provider: 'openai', baseURL: 'https://gateway.example/v1' },
+  ]) {
+    const result = recommendCatalog(catalog, 'shared', hints)
+    assert.equal(result.price.reason, 'conflict')
+    assert.equal(result.price.prices, undefined)
+    assert.equal(result.priceCandidates.length, 2)
+  }
+  const aligned = recommendCatalog(catalog, 'shared', {
+    provider: 'custom',
+    name: 'Gateway',
+    baseURL: 'https://gateway.example/v1',
+  })
+  assert.equal(aligned.price.provider, 'gateway')
+  const ambiguous = recommendCatalog({ a: route(model(), 'Same'), b: route(model(), 'Same') }, 'shared', {
+    provider: 'custom',
+    name: 'Same',
+  })
+  assert.equal(ambiguous.price.reason, 'conflict')
+})
+
 test('pi-web price threshold permits five agreeing sources but rejects ties and lone sources', () => {
   const entries = Array.from({ length: 11 }, (_, i) => [`v${i}`, route(model(i < 5 ? 3 : i, 15))])
   assert.equal(recommendCatalog(Object.fromEntries(entries), 'shared', hints).price.support, 5)

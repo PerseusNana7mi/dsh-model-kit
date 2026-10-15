@@ -90,3 +90,14 @@ test('fill restores catalog image input without removing already configured imag
     'text',
   ])
 })
+
+test('an explicit off-only effort is retained without inventing enabled reasoning levels', () => {
+  const result = lookup(
+    { vendor: { models: { m: { reasoning: true, reasoning_options: [{ type: 'effort', values: ['none'] }] } } } },
+    'vendor',
+    'm',
+  )
+  assert.deepEqual(result.model.reasoningEfforts, { off: 'none' })
+  assert.deepEqual(preview({ id: 'm' }, result).proposed.reasoningEfforts, { off: 'none' })
+  assert.equal(preview({ id: 'm', reasoningEfforts: false }, result).proposed.reasoningEfforts, false)
+})

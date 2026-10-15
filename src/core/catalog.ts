@@ -1,4 +1,6 @@
-/** Provider-specific prices in USD per million tokens. Missing means unknown. */
+import { MAX_MODEL_NAME_LENGTH } from './limits.js'
+
+/** Provider-specific prices per million tokens. Missing means unknown. */
 export interface Prices {
   input?: number
   output?: number
@@ -46,7 +48,8 @@ export function lookup(catalog: unknown, provider: string, id: string): Recommen
   const source = record(models[id])
   if (!source) return undefined
   const model: ModelFields = { id }
-  if (typeof source.name === 'string' && source.name.trim()) model.name = source.name
+  if (typeof source.name === 'string' && source.name.trim() && source.name.length <= MAX_MODEL_NAME_LENGTH)
+    model.name = source.name
   const limit = record(source.limit)
   if (number(limit?.context, true)) model.contextWindow = limit.context
   if (number(limit?.output, true)) model.maxTokens = limit.output
@@ -66,7 +69,7 @@ export function lookup(catalog: unknown, provider: string, id: string): Recommen
         else if (['minimal', 'low', 'medium', 'high', 'xhigh', 'max'].includes(value)) efforts[value] = value
       }
     }
-    if (Object.keys(efforts).some((key) => key !== 'off')) model.reasoningEfforts = efforts
+    if (Object.keys(efforts).length) model.reasoningEfforts = efforts
   }
   const prices: Prices = {}
   const cost = record(source.cost)

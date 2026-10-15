@@ -3,6 +3,7 @@ import type { SettingsPathOp } from '@deepseek-ai/dsh-settings'
 import { fieldKeys, type FieldKey } from '../core/diff.js'
 import type { ModelFields } from '../core/catalog.js'
 import { object, type SettingsPort, type ModelPatch } from './settings.js'
+import { editableFields } from '../wire.js'
 
 export class ModelOverrides {
   constructor(
@@ -72,6 +73,7 @@ export class ModelOverrides {
   ) {
     if (!this.settings().writable) throw new Error('Settings are read-only')
     if (!consent) throw new Error('请允许本次覆盖或恢复内置模型参数')
+    editableFields.parse(patch)
     const current = await this.read(provider, id)
     if (!Number.isSafeInteger(revision) || revision !== current.revision) throw new Error('配置已变化，请重新读取')
     if (
