@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "changes": [
+    {
+      "zh": "为中英文 README 添加语言、npm 版本与下载量、dsh.so 安装验证及许可证徽章，并整理配置管理与费用估算的后续计划。",
+      "en": "Added language, npm version and downloads, dsh.so installation, and license badges to both READMEs, and documented plans for configuration management and cost estimation."
+    }
+  ]
+}

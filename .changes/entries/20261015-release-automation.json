@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "changes": [
+    {
+      "zh": "新增手动触发的 GitHub Actions 发布流程，通过双平台检查与浏览器测试后生成插件安装包、校验和及固定格式的双语 Release 说明；npm 仍由维护者手动发布。",
+      "en": "Added a manually triggered GitHub Actions release workflow that generates an installable package, checksums, and bilingual release notes after cross-platform checks and browser tests; npm publishing remains manual."
+    },
+    {
+      "zh": "补充开发与发布指南，要求后续功能与修复同步记录简短的中英变更条目。",
+      "en": "Added development and release guidance requiring concise Chinese and English change entries alongside future features and fixes."
+    }
+  ]
+}

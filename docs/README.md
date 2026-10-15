@@ -14,6 +14,7 @@
 | 文档 | 内容 |
 | --- | --- |
 | [开发指南](development.md) | 环境、构建、测试、目录职责、文档维护规则与后续版本待办 |
+| [发布指南](releasing.md) | 一条命令触发 GitHub Release、双语条目、试运行与 npm 边界 |
 | [Settings 接入](settings.md) | 配置字段、服务 API、写入及报价契约 |
 | [费用接口核查与实施计划](cost-integration.md) | DSH 0.2.0-rc.2 的候选接口、计算口径、记录约束与分阶段估算计划 |
 | [参考记录](references.md) | 设计来源、代码归属和 README 结构参考 |

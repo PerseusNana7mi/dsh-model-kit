@@ -23,6 +23,7 @@ npm pack
 | `npm run verify` | lint、格式、类型检查、构建测试、打包文件预检查；只构建一次 lib，pack 预检查跳过生命周期脚本 |
 | `npm run test:ui` | 五组浏览器脚本，部分截图写入 work |
 | `npm pack` | prepack 先构建，仅生成本地 tgz，不等同于 `npm publish` |
+| `npm run release:notes -- --from <上次发布标签>` | 从双语变更条目生成 work/release/notes.md，仅本地预览，不发布 |
 
 日常使用标准测试命令，不在修改源码后直接测试旧 `lib`。浏览器 fixture 测试不能替代真实 Desktop 验收。GitHub Actions 在 Windows runner 上使用 Node 22.19.0，执行 `npm ci`、`npm run verify` 和五组 Edge 浏览器测试。
 
@@ -67,6 +68,9 @@ DSH rc.2 的 [官方兼容检查器](https://github.com/deepseek-ai/deepseek-har
 2. 行为变化更新对应使用说明或 API 文档；自动化测试结果以实际 CI 运行记录为准。
 3. 不把浏览器 fixture 或模拟测试写成真实 Desktop 验收。
 4. 发布新版本前核对 README 命令、相对链接、源代码行为和许可。
+5. **后续完成功能或修复时，一并在 `.changes/entries/` 添加简短的中英变更条目。** 同一功能的未发布条目可完善；已发布条目不修改、移动或删除，纠正内容另加文件。值得向用户说明的文档或发布流程变更也记录；格式见 [条目说明](../.changes/README.md)。
+
+GitHub Release 通过手动触发的独立工作流构建、验证并按固定中英格式汇总条目，命令、试运行与失败处理见 [发布指南](releasing.md)。普通提交只运行 CI，版本由维护者指定，npm 仍手动发布；更改工作流不等于授权触发正式发布。
 
 价格草稿的来源失效和数值显示规则集中在 src/client/price-draft.ts。开发依赖锁定 ESLint、typescript-eslint、React Hooks 规则和 Prettier；这些工具不随插件运行。CI 另在 Ubuntu 执行 verify，浏览器布局验收仍在 Windows Edge 上执行。
 
