@@ -28,6 +28,33 @@ test('real Cordis load: schema defaults, lazy fetch, cache and disposal', async 
   assert.equal(signal.aborted, true)
 })
 
+test('recommendation quotes retain the target revision captured before asynchronous catalog retrieval', async (t) => {
+  const ctx = new Context()
+  const sections = [{ ns: 'llm-pi-ai', revision: 0, value: { providers: { vendor: { models: [{ id: 'm' }] } } } }]
+  ctx.provide('settings', { describe: () => sections })
+  const fiber = await ctx.plugin(Plugin, {})
+  t.after(() => fiber.dispose())
+  t.mock.method(globalThis, 'fetch', async () => {
+    sections[0].revision++
+    return new Response(JSON.stringify({ vendor: { models: { m: { cost: { input: 1, output: 2 } } } } }))
+  })
+  const result = await ctx.modelMetadata.recommend('vendor', 'm', 'USD', 'models.dev')
+  await assert.rejects(
+    ctx.modelMetadata.rememberSource({
+      action: 'mappingSave',
+      provider: 'vendor',
+      id: 'm',
+      pricingSource: 'models.dev',
+      currency: 'USD',
+      quoteTicket: result.priceQuote.ticket,
+      revision: 0,
+      modelRevision: sections[0].revision,
+      confirmed: true,
+    }),
+    /明确选择/,
+  )
+})
+
 test('invalid config fails at load', async () => {
   const ctx = new Context()
   const fiber = ctx.plugin(Plugin, { timeoutMs: -1 })

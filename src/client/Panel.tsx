@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { BuiltinPanel } from './BuiltinPanel.js'
 import { BatchReviewPanel } from './BatchReviewPanel.js'
 import { SourceReview } from './SourceReview.js'
+import { SourceMappingEditor } from './SourceMappingEditor.js'
 import { ImportPanel } from './ImportPanel.js'
 import { ModelSelect } from './ModelSelect.js'
 import type { Reply, Request, PriceState } from '../wire.js'
@@ -77,6 +78,8 @@ export function Panel({ call, subscribeChanges }: PanelProps) {
   const providerModels = models.filter((row) => row.provider === provider)
   const target = models.find((row) => JSON.stringify([row.provider, row.id]) === selected)
   function receive(reply: Reply, includeModel: boolean, includePrices = true) {
+    if (!includeModel && reply.sourceMappings)
+      setLoaded((previous) => (previous ? { ...previous, sourceMappings: reply.sourceMappings! } : previous))
     if (includeModel && reply.model) {
       setLoadedSelection(selected)
       setLoaded(reply)
@@ -254,16 +257,17 @@ export function Panel({ call, subscribeChanges }: PanelProps) {
         action: 'pricePreview',
         id: modelId,
         targetId: target.id,
+        targetProvider: target.provider,
         catalogProvider,
         currency,
         pricingSource,
       })
       if (request !== priceGeneration.current || selection !== currentSelection.current || !reply.priceQuote) return
       receiveQuote(reply.priceQuote)
-      setNotice('已同时读取模型参数与参考价格，价格已填入草稿，点击保存即可。已有单价保持不变。')
+      setNotice('参考价格已填入草稿，请核对后保存。已有单价保持不变。')
     } catch (error) {
       if (request === priceGeneration.current && selection === currentSelection.current)
-        throw new Error(`模型参数已填入，但参考价格未获取：${readableError(error)}。可手动填写价格。`)
+        throw new Error(`参考价格未获取：${readableError(error)}。可手动填写价格。`)
     }
   }
   async function saveModel(isCurrent: () => boolean) {
@@ -745,6 +749,29 @@ export function Panel({ call, subscribeChanges }: PanelProps) {
                       参考目录获取时间：{new Date(quote.source.fetchedAt).toLocaleString()}
                     </p>
                   )}
+                  <SourceMappingEditor
+                    key={JSON.stringify([selected, currency, pricingSource, readGeneration])}
+                    call={call}
+                    run={run}
+                    provider={target.provider}
+                    id={target.id}
+                    currency={currency}
+                    pricingSource={pricingSource}
+                    initial={loaded?.sourceMappings}
+                    quote={quote}
+                    onQuote={receiveQuote}
+                    fetchReference={fillPricing}
+                    onSaved={(state) => {
+                      const rebased = priceState?.revision === state.priceRevisionFrom
+                      setLoaded((previous) => (previous ? { ...previous, sourceMappings: state } : previous))
+                      setPriceState((previous) =>
+                        previous && previous.revision === state.priceRevisionFrom
+                          ? { ...previous, revision: state.revision }
+                          : previous,
+                      )
+                      return rebased
+                    }}
+                  />
                   {priceState?.record?.reference && (
                     <p>
                       倍率参考来源：{priceState.record.reference.source.provider} /{' '}

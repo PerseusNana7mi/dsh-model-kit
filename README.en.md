@@ -25,6 +25,7 @@ Designed for **DSH Desktop 0.2.x, starting with 0.2.0-rc.2**. The development an
 | Model metadata | Look up display names, context windows, output limits, input modalities, and recognized reasoning efforts from Models.dev. |
 | Preview and compare | Fill a draft, review conflicting sources field by field, and undo the latest fill. |
 | Pricing | Edit input, output, cache-read, and cache-write rates in native USD or CNY; use a reference rate and multiplier when appropriate. |
+| Remember reference sources | Save an explicitly confirmed price reference per target model, catalog and currency, including exact aliases. Replace or clear it, or explicitly fetch a fresh quotation next time. |
 | Model import | Discover models through a provider already configured in DSH, preview them, and append selected models. |
 | Built-in overrides | Override individual fields of inherited models or restore inheritance. |
 | Batch review and save | Review up to 100 configured models with shared fresh catalogs, select parameter and direct-price fields, and confirm fill or update writes. Multiplier references update as whole snapshots; parameter and price results are reported separately. |

@@ -38,7 +38,7 @@ const harness: Harness = ((window as any).harness = {
 })
 const scenario = new URLSearchParams(location.search).get('scenario')
 let modelRevision = 0
-if (scenario === 'save-layout') {
+if (scenario === 'save-layout' || scenario === 'mappings') {
   const style = document.createElement('style')
   style.textContent = css + 'html,body{margin:0}#root{height:100vh}'
   document.head.append(style)
@@ -129,8 +129,48 @@ const quote = (id: string) => ({
   prices: { input: 3, output: 15 },
   source: { url: 'https://models.dev/api.json', provider: 'openai', model: id, fetchedAt: 1 },
 })
+const mappingEntries = new Map<string, NonNullable<Reply['sourceMappings']>['entries']>()
+let latestReference = 'canonical'
+const mappingStateOf = (id: string): NonNullable<Reply['sourceMappings']> => ({
+  revision: states.get(id)?.revision ?? 0,
+  modelRevision,
+  writable: true,
+  entries: mappingEntries.get(id) ?? [],
+})
 const call = async (r: Request): Promise<Reply> => {
   harness.calls.push(structuredClone(r))
+  if (r.action === 'mappingSave' || r.action === 'mappingClear') {
+    const previous = states.get(r.id) ?? { revision: 0, effective: {} }
+    if (r.revision !== previous.revision) throw new Error('Mapping configuration changed')
+    const entries = (mappingEntries.get(r.id) ?? []).filter(
+      (row) => row.currency !== r.currency || row.pricingSource !== r.pricingSource,
+    )
+    if (r.action === 'mappingSave')
+      entries.push({
+        pricingSource: r.pricingSource ?? 'models.dev',
+        currency: r.currency ?? 'USD',
+        referenceProvider: 'openai',
+        referenceModel: latestReference,
+        confirmedAt: 1,
+        status: 'ready',
+      })
+    mappingEntries.set(r.id, entries)
+    states.set(r.id, { ...previous, revision: previous.revision + 1 })
+    for (const listener of listeners) listener()
+    return { sourceMappings: { ...mappingStateOf(r.id), priceRevisionFrom: previous.revision } }
+  }
+  if (r.action === 'mappingUse') {
+    const entry = mappingEntries
+      .get(r.id)
+      ?.find((row) => row.currency === r.currency && row.pricingSource === r.pricingSource)
+    if (!entry) throw new Error('Mapping unavailable')
+    if (harness.holdQuote)
+      await new Promise<void>((resolve) => {
+        harness.release = resolve
+      })
+    latestReference = entry.referenceModel
+    return { priceQuote: quote(entry.referenceModel) }
+  }
   if (r.action === 'read' && harness.holdRead) {
     harness.holdRead = false
     const model = structuredClone(models.get(r.id)!)
@@ -205,6 +245,7 @@ const call = async (r: Request): Promise<Reply> => {
     return { candidates: [{ provider: 'openai', name: 'OpenAI', model: { id: r.id, contextWindow: 128000 } }] }
   }
   if (r.action === 'pricePreview') {
+    latestReference = r.id
     if (harness.holdQuote)
       await new Promise<void>((resolve) => {
         harness.release = resolve
@@ -278,7 +319,13 @@ const call = async (r: Request): Promise<Reply> => {
   }
   states.set(r.id, state)
   harness.saved = Object.fromEntries(states)
-  return { model: models.get(r.id)!, revision: modelRevision, prices: structuredClone(state), protectedPreset: false }
+  return {
+    model: models.get(r.id)!,
+    revision: modelRevision,
+    prices: structuredClone(state),
+    protectedPreset: false,
+    ...(scenario === 'mappings' ? { sourceMappings: mappingStateOf(r.id) } : {}),
+  }
 }
 createRoot(document.getElementById('root')!).render(
   scenario === 'save-layout' ? (

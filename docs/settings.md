@@ -6,6 +6,7 @@
 
 - 模型配置：默认命名空间 `llm-pi-ai`，通过普通配置 `modelNamespace` 可指定该适配器另一实例的 entry id。
 - 价格配置：本插件实际 Loader entry id（默认 `model-metadata`）下的 `prices` 可变字段。
+- 参考映射：同一插件 entry 下的 `sourceMappings` 可变字段，独立于价格与倍率快照。
 
 - 每条价格以 `[模型命名空间, provider, modelId]` 的 JSON 字符串为键，避免点号和斜杠产生歧义。
 - 读取通过 `describe({ redactSecrets: true })`，写入通过 `mutate(ns, ops, expectedRevision)`。
@@ -21,6 +22,7 @@
 | `cacheTtlMs` | `86400000` | 内存目录缓存有效期，毫秒；0 表示每次重新获取 |
 | `modelNamespace` | `llm-pi-ai` | 模型适配器 Settings 命名空间 |
 | `prices` | `{}` | 本插件保存的价格记录，通常通过面板管理 |
+| `sourceMappings` | `{}` | 用户明确确认的精确价格参考映射，通常通过面板管理 |
 
 启动不自动同步。目录失败明确返回错误，不回退过期缓存；价格快照在保存后不随目录变化。完整 schema 以 `src/index.ts` 和 `src/pricing-schema.ts` 为准。
 
@@ -83,6 +85,18 @@
 测试中的 LLM 适配器使用有限字段 schema fixture，目录网络使用固定响应；没有连接真实模型或读取用户凭据。UI 另有真实浏览器、模拟调用响应的测试。这些自动化测试不覆盖完整 llm-pi-ai 协议边界、其他宿主版本或真实模型调用。
 
 ## 其他远程操作
+
+### 已确认的价格参考映射
+
+键为 `[modelNamespace, provider, modelId, pricingSource, currency]` 的 JSON 字符串；记录参考供应商／模型 ID、数据源、币种、目录地址、确认时间和协议／API 地址的 SHA-256 指纹，不保存路由原文、headers 或凭据。最多保存 2,000 条，达到上限可替换已有项或先清除。路由或目录地址变化时拒绝按映射获取，损坏记录可替换／清除；删除目标后也可通过受限清除 API 删除对应记录。目录内容有效性在主动获取时重新检查，不启动后台检查。
+
+`read` 以及单模型保存响应中的 `sourceMappings` 返回插件 revision、模型 revision、writable 和当前目标的各币种／数据源映射；省略原始目录 URL 和路由指纹，状态为 `ready`、`route-changed`、`catalog-changed` 或 `invalid`。`ready` 不表示来源条目已联网验证。
+
+- `mappingSave`：目标、数据源、币种、两份 revision、`confirmed: true` 和有效 `quoteTicket`。报价必须由宿主获取，绑定当前目标供应商、模型、模型 revision、数据源和币种；不接受客户端直接声明参考身份或来源。共识、无目标供应商绑定的旧式报价、过期票据、变化后的模型 revision 均拒绝。`pricePreview` 新增可选 `targetProvider` 与已有 `targetId` 一起绑定目标；自动推荐报价也携带内部目标绑定。
+- `mappingUse`：目标、数据源、币种和两份 revision；强制获取映射中的精确参考条目新报价，下载后再次检查两份 revision。失败不回退缓存或其他候选，也不写配置。返回 `priceQuote`，仍需走原有保存确认。
+- `mappingClear`：目标、数据源、币种和插件 revision，仅删除指定映射，不删除价格。
+
+映射保存在插件实际 Loader entry，写入仅使用官方 Settings 的单条 set／unset。保存和清除后，仅在返回版本可确认为自身操作且完整价格表未变化时，响应包含 `priceRevisionFrom`；客户端只更新仍基于该原始版本的价格草稿 revision，不采用外部新价格版本。当前实现针对显式模型的价格参考；不会改变自动推荐、参数来源、批量来源或保存后的倍率基价，也不证明供应商结算方式。
 
 ### 批量核对与确认保存
 

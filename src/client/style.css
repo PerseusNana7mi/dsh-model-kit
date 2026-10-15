@@ -1040,3 +1040,12 @@
   border-bottom: 1px solid color-mix(in srgb, currentColor 12%, transparent);
   overflow-wrap: anywhere;
 }
+
+.dmm .dmm-source-mapping {
+  margin-top: 8px;
+  overflow-wrap: anywhere;
+}
+.dmm .dmm-source-mapping > summary {
+  cursor: pointer;
+  font-size: 12px;
+}

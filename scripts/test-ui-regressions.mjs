@@ -2,6 +2,7 @@ import { build } from 'esbuild'
 import { createServer } from 'node:http'
 import { chromium, expect } from '@playwright/test'
 import assert from 'node:assert/strict'
+import { mkdir } from 'node:fs/promises'
 
 const result = await build({
   entryPoints: ['test/ui-regression-fixture.tsx'],
@@ -41,6 +42,65 @@ try {
   }
   const fill = () => page.getByRole('button', { name: '填入模型信息', exact: true }).click()
   const save = () => page.getByRole('button', { name: '保存', exact: true }).click()
+  await open('mappings')
+  await select('gpt-a')
+  await page.getByLabel('显示名', { exact: true }).fill('Keep my draft')
+  await page.getByRole('button', { name: '编辑价格', exact: true }).click()
+  await page.getByText('记住参考来源 / 指定别名', { exact: true }).click()
+  const mapping = page.locator('.dmm-source-mapping')
+  await expect(mapping.getByRole('button', { name: '确认并记住当前报价来源', exact: true })).toBeDisabled()
+  await mapping.getByLabel('指定参考供应商 ID', { exact: true }).fill('openai')
+  await mapping.getByLabel('指定参考模型 ID', { exact: true }).fill('canonical')
+  await mapping.getByRole('button', { name: '获取指定参考报价', exact: true }).click()
+  assert.deepEqual(
+    await page.evaluate(() => {
+      const r = window.harness.calls.find((r) => r.action === 'pricePreview')
+      return [r.id, r.targetId, r.targetProvider]
+    }),
+    ['canonical', 'gpt-a', 'gateway'],
+  )
+  await mapping.getByRole('button', { name: '确认并记住当前报价来源', exact: true }).click()
+  await expect(mapping.getByText('已记住：openai / canonical（可用）', { exact: true })).toBeVisible()
+  await expect(page.getByLabel('显示名', { exact: true })).toHaveValue('Keep my draft')
+  await save()
+  assert.equal(await page.evaluate(() => window.harness.calls.find((r) => r.action === 'priceDraft').revision), 1)
+  await page.getByRole('button', { name: '重新读取（丢弃草稿）', exact: true }).click()
+  await page.getByText('记住参考来源 / 指定别名', { exact: true }).click()
+  await mapping.getByRole('button', { name: '按已记住来源获取最新报价', exact: true }).click()
+  await expect(mapping.getByRole('status')).toContainText('最新报价')
+  // Source/currency scopes stay independent, including after a saved mapping reload.
+  await page.locator('.dmm-price-editor').getByLabel('价格数据源').selectOption('basellm')
+  await page.getByText('记住参考来源 / 指定别名', { exact: true }).click()
+  await expect(mapping.getByText('当前数据源和币种尚未记住参考来源。', { exact: true })).toBeVisible()
+  await page.locator('.dmm-price-editor').getByLabel('价格数据源').selectOption('models.dev')
+  await page.getByText('记住参考来源 / 指定别名', { exact: true }).click()
+  await mapping.getByLabel('指定参考供应商 ID', { exact: true }).fill('openai')
+  await mapping.getByLabel('指定参考模型 ID', { exact: true }).fill('replacement')
+  await mapping.getByRole('button', { name: '获取指定参考报价', exact: true }).click()
+  await mapping.getByRole('button', { name: '确认并替换为当前报价来源', exact: true }).click()
+  await expect(mapping.getByText('已记住：openai / replacement（可用）', { exact: true })).toBeVisible()
+  await mapping.getByLabel('指定参考模型 ID', { exact: true }).fill('r'.repeat(512))
+  await mapping.getByRole('button', { name: '获取指定参考报价', exact: true }).click()
+  await mapping.getByRole('button', { name: '确认并替换为当前报价来源', exact: true }).click()
+  await page.setViewportSize({ width: 390, height: 844 })
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
+  await mkdir('work', { recursive: true })
+  await mapping.screenshot({ path: 'work/source-mapping-ui.png' })
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await mapping.getByRole('button', { name: '清除当前来源映射', exact: true }).click()
+  await expect(mapping.getByText('当前数据源和币种尚未记住参考来源。', { exact: true })).toBeVisible()
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  // A removed target must invalidate the pending mapping quote just like a manual quotation.
+  await mapping.getByRole('button', { name: '确认并记住当前报价来源', exact: true }).click()
+  await page.evaluate(() => {
+    window.harness.holdQuote = true
+  })
+  await mapping.getByRole('button', { name: '按已记住来源获取最新报价', exact: true }).click()
+  await page.waitForFunction(() => typeof window.harness.release === 'function')
+  await page.evaluate(() => window.harness.removeModel('gpt-a'))
+  await select('gpt-b')
+  await page.evaluate(() => window.harness.release())
+  await expect(page.locator('.dmm-prices')).not.toContainText('$3')
   await open('official')
   await select('gpt-a')
   await fill()

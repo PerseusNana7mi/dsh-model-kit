@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "changes": [
+    {
+      "zh": "支持按目标模型、数据源和币种记住已确认的精确价格参考来源，处理别名并允许替换、清除及主动获取最新报价；路由或目录变化后要求重新确认，不自动改动已保存价格或倍率基价。",
+      "en": "Remember explicitly confirmed price references per target model, catalog and currency, including exact aliases, replacement, clearing and fresh quotation requests. Route or catalog changes require confirmation again; saved rates and multiplier bases remain unchanged."
+    }
+  ]
+}

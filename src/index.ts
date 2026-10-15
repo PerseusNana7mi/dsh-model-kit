@@ -30,7 +30,9 @@ import {
   type PriceSource,
 } from './integration/settings.js'
 import type { Prices } from './core/catalog.js'
-import { pricesSchema } from './pricing-schema.js'
+import { pricesSchema, sourceMappingsSchema } from './pricing-schema.js'
+import { SourceMappings } from './integration/source-mappings.js'
+import type { MappingSource, SourceMapping } from './source-mapping.js'
 import MetadataController from './controller.js'
 export interface Config {
   catalogUrl: string
@@ -38,6 +40,7 @@ export interface Config {
   cacheTtlMs: number
   modelNamespace: string
   prices: Record<string, PriceRecord>
+  sourceMappings: Record<string, SourceMapping>
 }
 export const Config = Schema.object({
   catalogUrl: Schema.string().default('https://models.dev/api.json'),
@@ -45,6 +48,7 @@ export const Config = Schema.object({
   cacheTtlMs: Schema.number().min(0).max(2147483647).step(1).default(86400000),
   modelNamespace: Schema.string().default('llm-pi-ai'),
   prices: pricesSchema,
+  sourceMappings: sourceMappingsSchema,
 })
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -56,7 +60,16 @@ export default class ModelMetadataService extends Service {
   static Config = Config
   private readonly quotes = new Map<
     string,
-    { prices: Prices; source: PriceSource; currency: Currency; targetId: string; expires: number }
+    {
+      prices: Prices
+      source: PriceSource
+      currency: Currency
+      targetId: string
+      expires: number
+      targetProvider?: string | undefined
+      modelRevision?: number | undefined
+      pricingSource?: string | undefined
+    }
   >()
   private nativeCatalog: { data: unknown; fetchedAt: number } | undefined
   private nativePending: Promise<{ data: unknown; fetchedAt: number }> | undefined
@@ -67,12 +80,19 @@ export default class ModelMetadataService extends Service {
   readonly importer: ModelImporter
   readonly overrides: ModelOverrides
   private readonly batchEditor: BatchEditor
+  readonly sourceMappings: SourceMappings
   constructor(
     private readonly owner: Context,
     private readonly config: Config,
   ) {
     const ctx = owner
     super(ctx, 'modelMetadata')
+    this.sourceMappings = new SourceMappings(
+      () => this.settings(),
+      config.modelNamespace,
+      () => this.priceNamespace(),
+      () => config.catalogUrl,
+    )
     this.batchEditor = new BatchEditor(
       () => this.settings(),
       config.modelNamespace,
@@ -323,15 +343,95 @@ export default class ModelMetadataService extends Service {
     if (quote.currency !== currency) throw new Error('报价币种不匹配，请重新获取参考单价')
     return { prices: structuredClone(quote.prices), source: structuredClone(quote.source) }
   }
-  private storeQuote(reference: { prices: Prices; source: PriceSource }, currency: Currency, targetId: string) {
+  private storeQuote(
+    reference: { prices: Prices; source: PriceSource },
+    currency: Currency,
+    targetId: string,
+    targetProvider?: string,
+    modelRevision?: number,
+    pricingSource?: string,
+  ) {
     for (const [ticket, quote] of this.quotes) if (quote.expires < Date.now()) this.quotes.delete(ticket)
     if (this.quotes.size >= 128) this.quotes.delete(this.quotes.keys().next().value!)
     const ticket = randomUUID()
-    this.quotes.set(ticket, { ...structuredClone(reference), currency, targetId, expires: Date.now() + 30 * 60_000 })
+    this.quotes.set(ticket, {
+      ...structuredClone(reference),
+      currency,
+      targetId,
+      targetProvider,
+      modelRevision,
+      pricingSource,
+      expires: Date.now() + 30 * 60_000,
+    })
     return { ...reference, ticket }
   }
-  async quotePrices(provider: string, id: string, currency: Currency, pricingSource: string, targetId = id) {
-    return this.storeQuote(await this.priceReference(provider, id, currency, pricingSource), currency, targetId)
+  async quotePrices(
+    provider: string,
+    id: string,
+    currency: Currency,
+    pricingSource: string,
+    targetId = id,
+    targetProvider?: string,
+    forceRefresh = false,
+  ) {
+    const modelRevision = targetProvider ? this.readModel(targetProvider, targetId).revision : undefined
+    return this.storeQuote(
+      await this.priceReference(provider, id, currency, pricingSource, forceRefresh),
+      currency,
+      targetId,
+      targetProvider,
+      modelRevision,
+      pricingSource,
+    )
+  }
+  async rememberSource(request: Extract<Request, { action: 'mappingSave' }>) {
+    const parsed = requestSchema.parse(request)
+    if (parsed.action !== 'mappingSave') throw new Error('Invalid mapping request')
+    const quote = this.quotes.get(parsed.quoteTicket)
+    this.readQuote(parsed.quoteTicket, parsed.currency, parsed.id)
+    if (
+      !quote ||
+      quote.targetProvider !== parsed.provider ||
+      quote.modelRevision !== parsed.modelRevision ||
+      quote.pricingSource !== parsed.pricingSource ||
+      quote.source.provider === 'consensus' ||
+      quote.source.method === 'consensus'
+    )
+      throw new Error('请为当前目标明确选择一个参考来源并重新获取报价')
+    return this.sourceMappings.save(
+      parsed.provider,
+      parsed.id,
+      {
+        pricingSource: parsed.pricingSource,
+        currency: parsed.currency,
+        referenceProvider: quote.source.provider,
+        referenceModel: quote.source.model,
+      },
+      parsed.revision,
+      parsed.modelRevision,
+    )
+  }
+  async useSourceMapping(
+    provider: string,
+    id: string,
+    source: MappingSource,
+    currency: Currency,
+    revision: number,
+    modelRevision: number,
+  ) {
+    const entry = this.sourceMappings.reference(provider, id, source, currency, revision, modelRevision)
+    // User explicitly requests a fresh quotation; saved prices and matching policy are untouched.
+    const quote = await this.quotePrices(
+      entry.referenceProvider,
+      entry.referenceModel,
+      currency,
+      source,
+      id,
+      provider,
+      true,
+    )
+    this.sourceMappings.check(provider, id, revision, modelRevision)
+    return quote
   }
   async recommend(provider: string, id: string, currency: Currency, pricingSource: string, forceRefresh = false) {
     const section = this.settings()
@@ -341,6 +441,7 @@ export default class ModelMetadataService extends Service {
       section?.value as { providers?: Record<string, { displayName?: string; baseURL?: string }> } | undefined
     )?.providers
     if (!providers || !Object.hasOwn(providers, provider)) throw new Error('请先配置供应商')
+    const modelRevision = section!.revision
     const route = providers[provider]!
     const hints = {
       provider,
@@ -420,7 +521,14 @@ export default class ModelMetadataService extends Service {
       return {
         ...result,
         priceCandidates,
-        priceQuote: this.storeQuote({ prices: price.prices, source }, currency, id),
+        priceQuote: this.storeQuote(
+          { prices: price.prices, source },
+          currency,
+          id,
+          provider,
+          modelRevision,
+          pricingSource,
+        ),
         priceMessage:
           price.method === 'single-source'
             ? `参考价：${price.provider}（CNY 单一来源参考价）`
@@ -465,7 +573,7 @@ export default class ModelMetadataService extends Service {
       origins,
     )
   }
-  async priceReference(provider: string, id: string, currency: Currency, pricingSource: string) {
+  async priceReference(provider: string, id: string, currency: Currency, pricingSource: string, forceRefresh = false) {
     if (pricingSource === 'basellm') {
       const url = basellmProviderUrl(provider)
       const data = await fetchJson(url, this.requestSignal(), 'basellm')
@@ -473,7 +581,7 @@ export default class ModelMetadataService extends Service {
     }
     if (pricingSource !== 'models.dev' || currency !== 'USD')
       throw new Error('Models.dev 仅提供 USD；人民币请选 basellm 或手动填写')
-    if (!this.catalog || Date.now() - this.fetchedAt >= this.config.cacheTtlMs) await this.refresh()
+    if (forceRefresh || !this.catalog || Date.now() - this.fetchedAt >= this.config.cacheTtlMs) await this.refresh()
     const match = lookup(this.catalog, provider, id)
     if (!match) throw new Error('No exact reference price match')
     // Apply the same complexity guard to Models.dev prices.

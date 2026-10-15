@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type { InvocationDescriptor, RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 import { PACKAGE_NAME } from './package-identity.js'
+import { mappingState } from './source-mapping.js'
 import { MAX_MODEL_NAME_LENGTH, MAX_EFFORT_VALUE_LENGTH, MAX_PRICE, MAX_REVIEW_MODELS } from './core/limits.js'
 
 const id = z.string().trim().min(1).max(512)
@@ -78,6 +79,22 @@ const difference = z.object({ key: fieldKey, before: z.string(), after: z.string
 export const requestSchema = z.discriminatedUnion('action', [
   z
     .object({
+      action: z.literal('mappingSave'),
+      ...target,
+      pricingSource,
+      currency,
+      quoteTicket: id,
+      revision,
+      modelRevision: revision,
+      confirmed: z.literal(true),
+    })
+    .strict(),
+  z.object({ action: z.literal('mappingClear'), ...target, pricingSource, currency, revision }).strict(),
+  z
+    .object({ action: z.literal('mappingUse'), ...target, pricingSource, currency, revision, modelRevision: revision })
+    .strict(),
+  z
+    .object({
       action: z.literal('batchCommit'),
       confirmed: z.literal(true),
       ticket: id,
@@ -121,6 +138,7 @@ export const requestSchema = z.discriminatedUnion('action', [
       action: z.literal('pricePreview'),
       id,
       targetId: id.optional(),
+      targetProvider: id.optional(),
       catalogProvider: id,
       currency,
       pricingSource,
@@ -243,6 +261,7 @@ export const priceStateSchema = z.object({
     .optional(),
 })
 export const replySchema = z.object({
+  sourceMappings: mappingState.optional(),
   batchSaved: z
     .object({
       models: z.enum(['saved', 'skipped', 'pending', 'failed']),

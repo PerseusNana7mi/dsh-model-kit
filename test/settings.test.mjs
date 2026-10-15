@@ -162,6 +162,192 @@ async function fixture(t, defaultDirectory = true, metadataConfig = {}) {
 
 const provider = 'gateway.with/slashes'
 
+test('confirmed alias mappings persist through real Settings restart and fetch fresh prices without changing saved prices', async (t) => {
+  const { ctx, start } = await fixture(t)
+  const service = ctx.modelMetadata
+  let input = 3
+  let missing = false
+  t.mock.method(
+    globalThis,
+    'fetch',
+    async () =>
+      new Response(
+        JSON.stringify({
+          vendor: { models: missing ? {} : { canonical: { cost: { input, output: 4, cache_read: 0 } } } },
+        }),
+      ),
+  )
+  await service.savePrices(provider, 'm', { input: 0 }, service.readPrices(provider, 'm').revision)
+  const quote = await service.quotePrices('vendor', 'canonical', 'USD', 'models.dev', 'm', provider)
+  await service.setPriceMultiplier(
+    provider,
+    'm',
+    'vendor',
+    'canonical',
+    2,
+    service.readPrices(provider, 'm').revision,
+    'USD',
+    'models.dev',
+    quote.ticket,
+  )
+  const before = service.readPrices(provider, 'm')
+  const state = service.sourceMappings.read(provider, 'm')
+  const request = {
+    action: 'mappingSave',
+    provider,
+    id: 'm',
+    pricingSource: 'models.dev',
+    currency: 'USD',
+    quoteTicket: quote.ticket,
+    revision: state.revision,
+    modelRevision: state.modelRevision,
+    confirmed: true,
+  }
+  const result = await ctx.modelMetadataUi.execute(request)
+  assert.equal(result.sourceMappings.entries[0].referenceModel, 'canonical')
+  assert.equal(result.sourceMappings.priceRevisionFrom, before.revision)
+  assert.deepEqual(service.readPrices(provider, 'm').record, before.record)
+  const recovered = (await start()).modelMetadata
+  let restored = recovered.sourceMappings.read(provider, 'm')
+  assert.equal(restored.entries[0].status, 'ready')
+  input = 9
+  const fresh = await recovered.useSourceMapping(
+    provider,
+    'm',
+    'models.dev',
+    'USD',
+    restored.revision,
+    restored.modelRevision,
+  )
+  assert.equal(fresh.prices.input, 9)
+  assert.equal(fresh.prices.cacheRead, 0)
+  assert.deepEqual(recovered.readPrices(provider, 'm').record, before.record)
+  assert.equal(recovered.readPrices(provider, 'm').effective.input, 6)
+  missing = true
+  await assert.rejects(
+    recovered.useSourceMapping(provider, 'm', 'models.dev', 'USD', restored.revision, restored.modelRevision),
+    /exact reference/,
+  )
+  assert.equal(recovered.sourceMappings.read(provider, 'm').entries.length, 1)
+  await recovered.sourceMappings.clear(provider, 'm', 'models.dev', 'USD', restored.revision)
+  restored = (await start()).modelMetadata.sourceMappings.read(provider, 'm')
+  assert.deepEqual(restored.entries, [])
+})
+
+test('remembered sources reject unbound, cross-target, expired and stale-model quotes', async (t) => {
+  const { ctx } = await fixture(t)
+  const service = ctx.modelMetadata
+  t.mock.method(
+    globalThis,
+    'fetch',
+    async () => new Response(JSON.stringify({ vendor: { models: { canonical: { cost: { input: 1, output: 2 } } } } })),
+  )
+  const state = service.sourceMappings.read(provider, 'm')
+  const base = {
+    action: 'mappingSave',
+    provider,
+    id: 'm',
+    pricingSource: 'models.dev',
+    currency: 'USD',
+    revision: state.revision,
+    modelRevision: state.modelRevision,
+    confirmed: true,
+  }
+  const unbound = await service.quotePrices('vendor', 'canonical', 'USD', 'models.dev', 'm')
+  await assert.rejects(service.rememberSource({ ...base, quoteTicket: unbound.ticket }), /明确选择/)
+  const quote = await service.quotePrices('vendor', 'canonical', 'USD', 'models.dev', 'm', provider)
+  await assert.rejects(service.rememberSource({ ...base, provider: 'another', quoteTicket: quote.ticket }), /明确选择/)
+  await assert.rejects(service.rememberSource({ ...base, id: 'other', quoteTicket: quote.ticket }), /模型不匹配/)
+  await assert.rejects(service.rememberSource({ ...base, currency: 'CNY', quoteTicket: quote.ticket }), /币种不匹配/)
+  await service.saveModel(provider, 'm', { name: 'Changed' }, state.modelRevision)
+  await assert.rejects(
+    service.rememberSource({
+      ...base,
+      modelRevision: service.readModel(provider, 'm').revision,
+      quoteTicket: quote.ticket,
+    }),
+    /明确选择/,
+  )
+  const now = Date.now()
+  t.mock.method(Date, 'now', () => now + 31 * 60_000)
+  await assert.rejects(service.rememberSource({ ...base, quoteTicket: quote.ticket }), /过期/)
+  assert.deepEqual(service.sourceMappings.read(provider, 'm').entries, [])
+})
+
+test('native remembered references preserve currency and reject configuration changes during fresh retrieval', async (t) => {
+  const { ctx } = await fixture(t)
+  const service = ctx.modelMetadata
+  let changeDuringFetch = false
+  t.mock.method(globalThis, 'fetch', async () => {
+    if (changeDuringFetch) {
+      changeDuringFetch = false
+      await service.saveModel(provider, 'm', { name: 'Concurrent edit' }, service.readModel(provider, 'm').revision)
+    }
+    return new Response(JSON.stringify({ models: { canonical: { cost: { input: 0, output: 2, currency: 'CNY' } } } }))
+  })
+  const quote = await service.quotePrices('vendor', 'canonical', 'CNY', 'basellm', 'm', provider)
+  let state = service.sourceMappings.read(provider, 'm')
+  await service.rememberSource({
+    action: 'mappingSave',
+    provider,
+    id: 'm',
+    pricingSource: 'basellm',
+    currency: 'CNY',
+    quoteTicket: quote.ticket,
+    revision: state.revision,
+    modelRevision: state.modelRevision,
+    confirmed: true,
+  })
+  state = service.sourceMappings.read(provider, 'm')
+  const price = await service.useSourceMapping(provider, 'm', 'basellm', 'CNY', state.revision, state.modelRevision)
+  assert.equal(price.prices.input, 0)
+  await assert.rejects(
+    service.useSourceMapping(provider, 'm', 'basellm', 'USD', state.revision, state.modelRevision),
+    /不存在或已失效/,
+  )
+  changeDuringFetch = true
+  await assert.rejects(
+    service.useSourceMapping(provider, 'm', 'basellm', 'CNY', state.revision, state.modelRevision),
+    /配置已变化/,
+  )
+  assert.equal(service.readPrices(provider, 'm').record, undefined)
+})
+
+test('consensus quotations cannot be remembered as a single reference mapping', async (t) => {
+  const { ctx } = await fixture(t)
+  const service = ctx.modelMetadata
+  t.mock.method(
+    globalThis,
+    'fetch',
+    async () =>
+      new Response(
+        JSON.stringify(
+          Object.fromEntries(
+            ['vendor-a', 'vendor-b'].map((vendor) => [vendor, { models: { m: { cost: { input: 1, output: 2 } } } }]),
+          ),
+        ),
+      ),
+  )
+  const recommendation = await service.recommend(provider, 'm', 'USD', 'models.dev')
+  assert.equal(recommendation.priceQuote.source.method, 'consensus')
+  const state = service.sourceMappings.read(provider, 'm')
+  await assert.rejects(
+    service.rememberSource({
+      action: 'mappingSave',
+      provider,
+      id: 'm',
+      pricingSource: 'models.dev',
+      currency: 'USD',
+      quoteTicket: recommendation.priceQuote.ticket,
+      revision: state.revision,
+      modelRevision: state.modelRevision,
+      confirmed: true,
+    }),
+    /明确选择/,
+  )
+  assert.deepEqual(service.sourceMappings.read(provider, 'm').entries, [])
+})
+
 test('batch field selections persist with one real mutation per namespace and recover after restart', async (t) => {
   const { ctx, profile, start } = await fixture(t)
   const service = ctx.modelMetadata

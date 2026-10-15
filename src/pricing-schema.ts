@@ -1,5 +1,19 @@
 import Schema from '@deepseek-ai/schemastery'
 
+export const sourceMappingsSchema = Schema.dict(
+  Schema.object({
+    pricingSource: Schema.union(['models.dev', 'basellm']).required(),
+    currency: Schema.union(['USD', 'CNY']).required(),
+    referenceProvider: Schema.string().required(),
+    referenceModel: Schema.string().required(),
+    catalogUrl: Schema.string().required(),
+    routeHash: Schema.string().required(),
+    confirmedAt: Schema.number().min(0).step(1).required(),
+  }),
+)
+  .default({})
+  .volatile()
+
 const timestamp = () => Schema.number().min(0).step(1).required()
 const source = Schema.object({
   url: Schema.string().required(),

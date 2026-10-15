@@ -44,6 +44,22 @@ export default class MetadataController extends TypertRemoteService {
     const r = parsed.data
     const service = this.ctx.modelMetadata
     try {
+      if (r.action === 'mappingSave') return replySchema.parse({ sourceMappings: await service.rememberSource(r) })
+      if (r.action === 'mappingClear')
+        return replySchema.parse({
+          sourceMappings: await service.sourceMappings.clear(r.provider, r.id, r.pricingSource, r.currency, r.revision),
+        })
+      if (r.action === 'mappingUse')
+        return replySchema.parse({
+          priceQuote: await service.useSourceMapping(
+            r.provider,
+            r.id,
+            r.pricingSource,
+            r.currency,
+            r.revision,
+            r.modelRevision,
+          ),
+        })
       if (r.action === 'batchCommit') return replySchema.parse({ batchSaved: await service.batchCommit(r) })
       if (r.action === 'batchReview')
         return replySchema.parse({ batchReview: await service.batchReview(r.targets, r.currency, r.pricingSource) })
@@ -53,7 +69,14 @@ export default class MetadataController extends TypertRemoteService {
         })
       if (r.action === 'pricePreview')
         return replySchema.parse({
-          priceQuote: await service.quotePrices(r.catalogProvider, r.id, r.currency, r.pricingSource, r.targetId),
+          priceQuote: await service.quotePrices(
+            r.catalogProvider,
+            r.id,
+            r.currency,
+            r.pricingSource,
+            r.targetId,
+            r.targetProvider,
+          ),
         })
       if (r.action === 'candidates') return replySchema.parse({ candidates: await service.candidates(r.id) })
       if (r.action === 'builtinList')
@@ -85,6 +108,7 @@ export default class MetadataController extends TypertRemoteService {
         return replySchema.parse({
           ...service.readModel(r.provider, r.id),
           prices: service.readPrices(r.provider, r.id),
+          sourceMappings: service.sourceMappings.read(r.provider, r.id),
         })
       if (r.action === 'list') return replySchema.parse({ models: service.listModels() })
       if (r.action === 'preview') {
@@ -146,7 +170,11 @@ export default class MetadataController extends TypertRemoteService {
           r.reuseSavedReference,
         )
       if (r.action === 'manualMode') await service.useManualPrices(r.provider, r.id, r.revision)
-      return replySchema.parse({ ...service.readModel(r.provider, r.id), prices: service.readPrices(r.provider, r.id) })
+      return replySchema.parse({
+        ...service.readModel(r.provider, r.id),
+        prices: service.readPrices(r.provider, r.id),
+        sourceMappings: service.sourceMappings.read(r.provider, r.id),
+      })
     } catch (error) {
       const message = readableError(error)
       const operational =
