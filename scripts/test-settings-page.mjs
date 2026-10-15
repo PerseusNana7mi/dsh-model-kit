@@ -92,7 +92,7 @@ try {
     await expect(page.getByRole('button', { name: '保存', exact: true })).toBeDisabled()
     await assertLayout()
     const currencyBox = await page.getByLabel('计价币种').boundingBox()
-    const sourceBox = await page.getByLabel('价格数据源').boundingBox()
+    const sourceBox = await page.locator('.dmm-price-editor').getByLabel('价格数据源').boundingBox()
     assert.ok(Math.abs(currencyBox.y - sourceBox.y) < 1)
     const inputBox = await page.getByLabel('输入', { exact: true }).boundingBox()
     const outputBox = await page.getByLabel('输出', { exact: true }).boundingBox()

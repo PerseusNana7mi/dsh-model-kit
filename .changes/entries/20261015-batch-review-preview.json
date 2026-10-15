@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "changes": [
+    {
+      "zh": "新增批量核对：选择最多 100 个已配置模型，共享最新目录并逐字段比较参数、原币种价格及同来源倍率试算，区分补全与更新，不改变单模型未保存草稿。",
+      "en": "Added batch review for up to 100 configured models using shared fresh catalogs, with field-level parameter and native-currency price comparisons, same-source multiplier projections, and separate fill/update modes without changing unsaved single-model drafts."
+    },
+    {
+      "zh": "批量核对支持逐模型与逐字段选择后确认保存；倍率价格按整份完整参考快照更新。宿主管理限时保存计划并检查两份配置版本、输出上限及预设授权，参数和价格分别报告结果，部分失败可按原报价重试未完成部分。",
+      "en": "Batch review now supports confirmed model and field selections, with multiplier prices updated as complete reference snapshots. Host-owned expiring plans check both configuration revisions, output-cap consent, and preset permission, report parameter and price results separately, and allow unfinished writes to retry with the original quote after a partial failure."
+    }
+  ]
+}

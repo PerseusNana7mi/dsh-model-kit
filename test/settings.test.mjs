@@ -12,7 +12,7 @@ import { PACKAGE_NAME } from '../lib/package-identity.js'
 
 // An isolated profile uses the real boot, Loader, Settings and disk editor.
 // Only the LLM adapter is a schema fixture: no credentials or model calls.
-async function fixture(t, defaultDirectory = true) {
+async function fixture(t, defaultDirectory = true, metadataConfig = {}) {
   const scratch = resolve('work')
   await mkdir(scratch, { recursive: true })
   const home = await mkdtemp(join(scratch, 'settings-'))
@@ -33,7 +33,7 @@ async function fixture(t, defaultDirectory = true) {
           { id: 'typert', name: 'cordis:test-typert' },
           { id: 'settings', name: 'cordis:test-settings' },
           { id: 'config-editor', name: 'cordis:test-editor' },
-          { id: 'model-metadata', name: 'cordis:test-metadata' },
+          { id: 'model-metadata', name: 'cordis:test-metadata', config: metadataConfig },
           {
             id: 'llm-pi-ai',
             name: 'cordis:test-models',
@@ -161,6 +161,266 @@ async function fixture(t, defaultDirectory = true) {
 }
 
 const provider = 'gateway.with/slashes'
+
+test('batch field selections persist with one real mutation per namespace and recover after restart', async (t) => {
+  const { ctx, profile, start } = await fixture(t)
+  const service = ctx.modelMetadata
+  let price = 2
+  t.mock.method(
+    globalThis,
+    'fetch',
+    async () =>
+      new Response(
+        JSON.stringify({
+          vendor: {
+            api: 'https://example.test/v1',
+            models: {
+              m: { name: 'Directory', limit: { context: 128000, output: 8000 }, cost: { input: price, output: 4 } },
+              other: { limit: { context: 64000 }, cost: { input: 0, output: 1 } },
+            },
+          },
+        }),
+      ),
+  )
+  const review = (
+    await ctx.modelMetadataUi.execute({
+      action: 'batchReview',
+      targets: [
+        { provider, id: 'm' },
+        { provider, id: 'other' },
+      ],
+    })
+  ).batchReview
+  const request = {
+    action: 'batchCommit',
+    confirmed: true,
+    ticket: review.ticket,
+    mode: 'update',
+    selections: [
+      {
+        provider,
+        id: 'm',
+        fields: ['contextWindow', 'maxTokens'],
+        prices: ['input', 'output'],
+        updateReference: false,
+      },
+      { provider, id: 'other', fields: ['contextWindow'], prices: ['input'], updateReference: false },
+    ],
+    allowPresetOverride: false,
+    acceptDefaultOutputCap: false,
+  }
+  const before = await readFile(profile.patchPath, 'utf8').catch(() => '')
+  await assert.rejects(ctx.modelMetadataUi.execute(request), /默认请求输出上限/)
+  assert.equal(await readFile(profile.patchPath, 'utf8').catch(() => ''), before)
+  const mutate = ctx.settings.mutate.bind(ctx.settings)
+  const writes = []
+  t.mock.method(ctx.settings, 'mutate', async (...args) => {
+    writes.push(args)
+    return mutate(...args)
+  })
+  price = 999
+  request.acceptDefaultOutputCap = true
+  const result = (await ctx.modelMetadataUi.execute(request)).batchSaved
+  assert.equal(result.complete, true)
+  assert.deepEqual(
+    writes.map(([ns, ops]) => [ns, ops.length]),
+    [
+      ['llm-pi-ai', 1],
+      ['model-metadata', 2],
+    ],
+  )
+  assert.equal(service.readModel(provider, 'm').model.name, 'My model')
+  assert.equal(service.readModel(provider, 'other').model.contextWindow, 64000)
+  assert.equal(service.readPrices(provider, 'm').effective.input, 2)
+  const restarted = await start()
+  assert.equal(restarted.modelMetadata.readModel(provider, 'm').model.maxTokens, 8000)
+  assert.equal(restarted.modelMetadata.readPrices(provider, 'other').effective.input, 0)
+  assert.deepEqual((await ctx.modelMetadataUi.execute(request)).batchSaved, result)
+  assert.equal(writes.length, 2)
+  await assert.rejects(restarted.modelMetadataUi.execute(request), /过期|淘汰/)
+})
+
+test('real Settings batch partial failure retries only the original price mutation and never adopts an external price revision', async (t) => {
+  const { ctx } = await fixture(t)
+  t.mock.method(
+    globalThis,
+    'fetch',
+    async () =>
+      new Response(
+        JSON.stringify({
+          vendor: {
+            api: 'https://example.test/v1',
+            models: {
+              m: { limit: { context: 128000 }, cost: { input: 2, output: 4 } },
+            },
+          },
+        }),
+      ),
+  )
+  const plan = await ctx.modelMetadata.batchReview([{ provider, id: 'm' }])
+  const request = {
+    action: 'batchCommit',
+    confirmed: true,
+    ticket: plan.ticket,
+    mode: 'fill',
+    selections: [{ provider, id: 'm', fields: ['contextWindow'], prices: ['input'], updateReference: false }],
+    allowPresetOverride: false,
+    acceptDefaultOutputCap: false,
+  }
+  const mutate = ctx.settings.mutate.bind(ctx.settings)
+  const writes = []
+  let fail = true
+  t.mock.method(ctx.settings, 'mutate', async (ns, ops, revision) => {
+    writes.push([ns, revision])
+    if (fail && ns === 'model-metadata') throw new Error('fixture disk temporarily unavailable')
+    return mutate(ns, ops, revision)
+  })
+  const partial = (await ctx.modelMetadataUi.execute(request)).batchSaved
+  assert.equal(partial.models, 'saved')
+  assert.equal(partial.retryable, true)
+  assert.equal(ctx.modelMetadata.readModel(provider, 'm').model.contextWindow, 128000)
+  fail = false
+  assert.equal((await ctx.modelMetadataUi.execute(request)).batchSaved.complete, true)
+  assert.deepEqual(
+    writes.map(([ns]) => ns),
+    ['llm-pi-ai', 'model-metadata', 'model-metadata'],
+  )
+  assert.equal(writes[1][1], plan.priceRevision)
+  assert.equal(writes[2][1], plan.priceRevision)
+  const stale = await ctx.modelMetadata.batchReview([{ provider, id: 'm' }])
+  await ctx.modelMetadata.savePrices(provider, 'm', { input: 88 }, ctx.modelMetadata.readPrices(provider, 'm').revision)
+  await assert.rejects(ctx.modelMetadataUi.execute({ ...request, ticket: stale.ticket }), /配置已变化/)
+  assert.equal(ctx.modelMetadata.readPrices(provider, 'm').effective.input, 88)
+})
+
+test('batch native multiplier snapshots persist at zero without losing cached or manual rates', async (t) => {
+  const { ctx, start } = await fixture(t)
+  let input = 2
+  let cache = true
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    const native = url.includes('basellm')
+    const data = {
+      api: 'https://example.test/v1',
+      models: {
+        m: {
+          cost: {
+            input,
+            output: input * 2,
+            ...(native ? { currency: 'CNY' } : {}),
+            ...(cache ? { cache_read: 0 } : {}),
+          },
+        },
+      },
+    }
+    return new Response(JSON.stringify(url.includes('/providers/') ? data : { vendor: data }))
+  })
+  const service = ctx.modelMetadata
+  await service.savePrices(provider, 'm', { input: 77 }, service.readPrices(provider, 'm').revision, 'CNY')
+  await service.setPriceMultiplier(
+    provider,
+    'm',
+    'vendor',
+    'm',
+    0,
+    service.readPrices(provider, 'm').revision,
+    'CNY',
+    'basellm',
+  )
+  input = 3
+  const review = await service.batchReview([{ provider, id: 'm' }], 'CNY', 'basellm')
+  assert.equal(review.rows[0].referenceUpdateAvailable, true)
+  const request = {
+    action: 'batchCommit',
+    confirmed: true,
+    ticket: review.ticket,
+    mode: 'update',
+    selections: [{ provider, id: 'm', fields: [], prices: [], updateReference: true }],
+    allowPresetOverride: false,
+    acceptDefaultOutputCap: false,
+  }
+  assert.equal((await ctx.modelMetadataUi.execute(request)).batchSaved.complete, true)
+  const record = service.readPrices(provider, 'm').record
+  assert.deepEqual(record.reference.prices, { input: 3, output: 6, cacheRead: 0 })
+  assert.equal(record.multiplier, 0)
+  assert.equal(record.rates.input.value, 77)
+  assert.match(record.reference.source.url, /all.json$/)
+  const restarted = await start()
+  assert.deepEqual(restarted.modelMetadata.readPrices(provider, 'm').record, record)
+  cache = false
+  input = 5
+  const missing = await service.batchReview([{ provider, id: 'm' }], 'CNY', 'basellm')
+  assert.notEqual(missing.rows[0].referenceUpdateAvailable, true)
+  await assert.rejects(ctx.modelMetadataUi.execute({ ...request, ticket: missing.ticket }), /整份/)
+  assert.deepEqual(service.readPrices(provider, 'm').record, record)
+})
+
+test('batch review shares fresh downloads, preserves real Settings and isolates metadata failures', async (t) => {
+  const { ctx, profile } = await fixture(t, true, { cacheTtlMs: 0 })
+  const service = ctx.modelMetadata
+  await service.savePrices(provider, 'm', { input: 0 }, service.readPrices(provider, 'm').revision, 'CNY')
+  const before = await readFile(profile.patchPath, 'utf8')
+  const calls = { metadata: 0, native: 0 }
+  let offline = false
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    const native = url.includes('basellm')
+    calls[native ? 'native' : 'metadata']++
+    if (!native && offline) throw new Error('metadata offline')
+    return new Response(
+      JSON.stringify({
+        vendor: {
+          models: {
+            m: { name: 'Catalog', cost: { input: 2, output: 4, ...(native ? { currency: 'CNY' } : {}) } },
+            other: { cost: { input: 0, output: 0, ...(native ? { currency: 'CNY' } : {}) } },
+          },
+        },
+      }),
+    )
+  })
+  const request = {
+    action: 'batchReview',
+    targets: [
+      { provider, id: 'm' },
+      { provider, id: 'other' },
+    ],
+    currency: 'CNY',
+    pricingSource: 'basellm',
+  }
+  const first = (await ctx.modelMetadataUi.execute(request)).batchReview
+  assert.deepEqual(calls, { metadata: 1, native: 1 })
+  assert.equal(first.rows[0].currentPrices.input, 0)
+  assert.equal(first.rows[0].priceChanges.find((field) => field.key === 'input').selected, false)
+  assert.ok(first.rows[0].parameters.length > 0)
+  assert.equal(JSON.stringify(first).includes('secret-value'), false)
+  assert.equal(JSON.stringify(first).includes('SECRET_REF'), false)
+  offline = true
+  const second = (await ctx.modelMetadataUi.execute(request)).batchReview
+  assert.deepEqual(calls, { metadata: 2, native: 2 })
+  assert.match(second.warnings[0], /metadata offline/)
+  assert.deepEqual(second.rows[0].parameters, [])
+  assert.ok(second.rows[0].priceChanges.length > 0)
+  assert.equal(await readFile(profile.patchPath, 'utf8'), before)
+  await assert.rejects(service.batchReview([...request.targets, request.targets[0]], 'CNY', 'basellm'), /重复/)
+  await assert.rejects(service.batchReview(Array.from({ length: 101 }, (_, i) => ({ provider, id: String(i) }))))
+  assert.deepEqual(calls, { metadata: 2, native: 2 })
+})
+
+test('batch review rejects configuration changes made during downloads through the real Settings API', async (t) => {
+  const { ctx } = await fixture(t)
+  t.mock.method(globalThis, 'fetch', async () => {
+    await ctx.modelMetadata.savePrices(
+      provider,
+      'm',
+      { input: 3 },
+      ctx.modelMetadata.readPrices(provider, 'm').revision,
+    )
+    return new Response('{}')
+  })
+  await assert.rejects(
+    ctx.modelMetadataUi.execute({ action: 'batchReview', targets: [{ provider, id: 'm' }] }),
+    /配置已变化/,
+  )
+  assert.equal(ctx.modelMetadata.readPrices(provider, 'm').effective.input, 3)
+})
 
 test('preset protection follows the host directory and ignores unrelated paths', async (t) => {
   const { ctx } = await fixture(t, false)

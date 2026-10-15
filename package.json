@@ -81,7 +81,7 @@
     "test": "npm run build && node --test test/*.test.mjs",
     "verify": "npm run lint && npm run format:check && npm run typecheck && npm test && npm pack --dry-run --ignore-scripts",
     "prepack": "npm run build",
-    "test:ui": "node scripts/test-ui.mjs && node scripts/test-ui-regressions.mjs && node scripts/test-select-layout.mjs && node scripts/test-settings-page.mjs && node scripts/test-editor-safety.mjs",
+    "test:ui": "node scripts/test-ui.mjs && node scripts/test-ui-regressions.mjs && node scripts/test-select-layout.mjs && node scripts/test-settings-page.mjs && node scripts/test-editor-safety.mjs && node scripts/test-batch-review.mjs",
     "release:notes": "node scripts/release.mjs notes",
     "lint": "eslint src --max-warnings 0",
     "format": "prettier --write src scripts test eslint.config.mjs",

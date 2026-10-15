@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import type { InvocationDescriptor, RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 import { PACKAGE_NAME } from './package-identity.js'
-import { MAX_MODEL_NAME_LENGTH, MAX_EFFORT_VALUE_LENGTH, MAX_PRICE } from './core/limits.js'
+import { MAX_MODEL_NAME_LENGTH, MAX_EFFORT_VALUE_LENGTH, MAX_PRICE, MAX_REVIEW_MODELS } from './core/limits.js'
 
 const id = z.string().trim().min(1).max(512)
 const quoteFields = z
@@ -66,6 +66,7 @@ const currency = z.enum(['USD', 'CNY']).default('USD')
 const pricingSource = z.enum(['models.dev', 'basellm']).default('models.dev')
 const target = { provider: id, id }
 const fieldKey = z.enum(['name', 'contextWindow', 'maxTokens', 'input', 'reasoningEfforts'])
+const priceKey = z.enum(['input', 'output', 'cacheRead', 'cacheWrite'])
 const modelFields = fields.extend({ id })
 const candidate = z.object({
   provider: id,
@@ -75,6 +76,37 @@ const candidate = z.object({
 })
 const difference = z.object({ key: fieldKey, before: z.string(), after: z.string(), selected: z.boolean() })
 export const requestSchema = z.discriminatedUnion('action', [
+  z
+    .object({
+      action: z.literal('batchCommit'),
+      confirmed: z.literal(true),
+      ticket: id,
+      mode: z.enum(['fill', 'update']),
+      selections: z
+        .array(
+          z
+            .object({
+              ...target,
+              fields: z.array(fieldKey).max(5),
+              prices: z.array(priceKey).max(4),
+              updateReference: z.boolean(),
+            })
+            .strict(),
+        )
+        .min(1)
+        .max(MAX_REVIEW_MODELS),
+      acceptDefaultOutputCap: z.boolean(),
+      allowPresetOverride: z.boolean(),
+    })
+    .strict(),
+  z
+    .object({
+      action: z.literal('batchReview'),
+      targets: z.array(z.object(target).strict()).min(1).max(MAX_REVIEW_MODELS),
+      currency,
+      pricingSource,
+    })
+    .strict(),
   z
     .object({
       action: z.literal('recommend'),
@@ -211,6 +243,54 @@ export const priceStateSchema = z.object({
     .optional(),
 })
 export const replySchema = z.object({
+  batchSaved: z
+    .object({
+      models: z.enum(['saved', 'skipped', 'pending', 'failed']),
+      prices: z.enum(['saved', 'skipped', 'pending', 'failed']),
+      complete: z.boolean(),
+      retryable: z.boolean(),
+      message: z.string(),
+    })
+    .optional(),
+  batchReview: z
+    .object({
+      ticket: id.optional(),
+      expiresAt: z.number().optional(),
+      writable: z.boolean().optional(),
+      checkedAt: z.number(),
+      modelRevision: revision,
+      priceRevision: revision,
+      warnings: z.array(z.string()),
+      rows: z.array(
+        z.object({
+          provider: id,
+          id,
+          name: z.string(),
+          protectedPreset: z.boolean(),
+          parameters: z.array(difference),
+          parameterMessage: z.string(),
+          priceMessage: z.string(),
+          currentPrices: prices,
+          referencePrices: prices,
+          currentCurrency: z.enum(['USD', 'CNY']).optional(),
+          priceMode: z.enum(['manual', 'multiplier']),
+          multiplier: price.optional(),
+          referenceSource: source.optional(),
+          savedReferencePrices: prices.optional(),
+          referenceUpdateAvailable: z.boolean().optional(),
+          error: z.string().optional(),
+          priceChanges: z.array(
+            z.object({
+              key: z.enum(['input', 'output', 'cacheRead', 'cacheWrite']),
+              before: price.optional(),
+              after: price,
+              selected: z.boolean(),
+            }),
+          ),
+        }),
+      ),
+    })
+    .optional(),
   fillResult: z
     .object({
       changed: z.array(z.enum(['input', 'output', 'cacheRead', 'cacheWrite'])),

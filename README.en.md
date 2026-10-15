@@ -27,6 +27,7 @@ Designed for **DSH Desktop 0.2.x, starting with 0.2.0-rc.2**. The development an
 | Pricing | Edit input, output, cache-read, and cache-write rates in native USD or CNY; use a reference rate and multiplier when appropriate. |
 | Model import | Discover models through a provider already configured in DSH, preview them, and append selected models. |
 | Built-in overrides | Override individual fields of inherited models or restore inheritance. |
+| Batch review and save | Review up to 100 configured models with shared fresh catalogs, select parameter and direct-price fields, and confirm fill or update writes. Multiplier references update as whole snapshots; parameter and price results are reported separately. |
 
 Reference prices come from **Models.dev (USD)** or **basellm (native USD/CNY)**. Missing prices remain unknown, explicit zero remains zero, and the plugin does not convert currencies. See [recommendation rules](docs/pi-web-workflow.md) and [pricing sources](docs/pricing-sources.md).
 

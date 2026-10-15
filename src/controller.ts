@@ -44,6 +44,9 @@ export default class MetadataController extends TypertRemoteService {
     const r = parsed.data
     const service = this.ctx.modelMetadata
     try {
+      if (r.action === 'batchCommit') return replySchema.parse({ batchSaved: await service.batchCommit(r) })
+      if (r.action === 'batchReview')
+        return replySchema.parse({ batchReview: await service.batchReview(r.targets, r.currency, r.pricingSource) })
       if (r.action === 'recommend')
         return replySchema.parse({
           recommendation: await service.recommend(r.provider, r.id, r.currency, r.pricingSource, r.forceRefresh),

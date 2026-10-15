@@ -1007,3 +1007,36 @@
 .dmm .dmm-import .dmm-diff > div {
   padding: 5px 0;
 }
+
+.dmm .dmm-batch-review .dmm-import-list label {
+  overflow-wrap: anywhere;
+}
+.dmm .dmm-batch-review .dmm-check input {
+  flex: none;
+}
+.dmm .dmm-batch-row {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+  overflow-wrap: anywhere;
+}
+.dmm .dmm-batch-review table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 12px;
+}
+.dmm .dmm-batch-review caption {
+  text-align: left;
+  font-weight: 600;
+  padding: 6px 0;
+}
+.dmm .dmm-batch-review th,
+.dmm .dmm-batch-review td {
+  text-align: left;
+  vertical-align: top;
+  padding: 6px 4px;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  overflow-wrap: anywhere;
+}

@@ -2,6 +2,7 @@ import { withoutQuotes, formatPrice, previewMultipliedPrice, type PriceInputs } 
 import { readableError } from '../core/errors.js'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { BuiltinPanel } from './BuiltinPanel.js'
+import { BatchReviewPanel } from './BatchReviewPanel.js'
 import { SourceReview } from './SourceReview.js'
 import { ImportPanel } from './ImportPanel.js'
 import { ModelSelect } from './ModelSelect.js'
@@ -809,6 +810,7 @@ export function Panel({ call, subscribeChanges }: PanelProps) {
           <summary>更多模型操作</summary>
           <ImportPanel call={call} refreshKey={listGeneration} onImported={setModels} />
           <BuiltinPanel call={call} refreshKey={listGeneration} />
+          <BatchReviewPanel call={call} models={models} refreshKey={listGeneration} />
         </details>
       </div>
       <footer className="dmm-save-bar">

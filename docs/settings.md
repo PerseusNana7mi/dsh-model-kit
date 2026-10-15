@@ -84,6 +84,26 @@
 
 ## 其他远程操作
 
+### 批量核对与确认保存
+
+`action: 'batchReview'` 接收 `targets: [{ provider, id }]`、`currency`（默认 USD）及 `pricingSource`（默认 models.dev），目标限 1～100 个且不可重复。目标是当前适配器命名空间中的显式模型，不允许传入任意配置路径、保存字段或客户端报价。Models.dev 不接受 CNY。宿主服务对应 `batchReview(targets, currency?, pricingSource?)`，直接调用也执行请求限制。
+
+返回 `batchReview`，包含核对时间、模型与价格命名空间 revision、目录失败警告和逐模型结果，以及宿主管理的 `ticket`、`expiresAt` 和 `writable`。`parameters` 沿用字段差异格式，`selected` 表示默认补全；`priceChanges` 包含当前／建议生效价和补全标记。`currentPrices` 为已保存生效价，`referencePrices` 为本次目录参考价；倍率模型另有 `savedReferencePrices` 和 `referenceUpdateAvailable`，后者只允许完整的同来源快照更新。报价、字段值和来源由宿主保存，不接受客户端重述。
+
+模型与价格通过一次脱敏 `describe` 生成配置快照；每批刷新所需目录一次，复用进行中的请求，不采用失败后的过期目录。参数与 basellm 价格独立失败；逐模型错误不隐藏其他结果。下载后再次检查两份 revision；变化则拒绝整批预览。整个操作不调用 `mutate`，只读 Settings 也可核对。
+
+补全标记保护已有人工值和明确零价，保留单模型能力补全例外。更新模式由客户端展示全部可用差异，不代表授权覆盖。倍率模型仅复用同币种、同来源、精确参考模型和原倍率进行试算，历史共识参考、来源不一致、未知参考项或超限计算不生成对应更新建议；目录缺失项不删除保存值。异币种记录跳过价格比较。
+
+`action: 'batchCommit'`（宿主 `batchCommit(request)`）接收 `ticket`、`confirmed: true`、`mode: 'fill' | 'update'`、1～100 个不重复的 `selections` 和两项确认 `acceptDefaultOutputCap`／`allowPresetOverride`。每项选择只能包含预览内的 `provider`、`id`、`fields`（模型字段名）、`prices`（四项直接单价字段名）及 `updateReference`（是否更新整份倍率参考）；不接收任意路径、字段值、币种、倍率或报价来源。补全模式拒绝选择非补全建议；更新模式也只能选择本计划已有建议。
+
+保存计划有效期 15 分钟，宿主最多保留 20 份；容量不足淘汰最旧的非繁忙计划，过期、重启或插件重载后不可提交。同一票据禁止并发保存。提交先完整检查目标、重复项、字段白名单、新写入限制、两份原始 revision、脱敏数组、预设授权和输出上限确认，然后参数／价格各最多一次 `mutate`，不承诺跨命名空间事务。每个供应商只替换其一次合并后的 models 数组，保留其他模型、compat 和未编辑字段；每条直接单价仅修改选中项目并写入宿主保管的 catalog 来源。
+
+倍率模型只接受更新模式下的 `updateReference: true`，不能同时选择 `prices`；新快照必须包含旧快照所有已知字段，整份替换后仍保留倍率和备用手动价。零倍率不阻止显式更新基价；缺项不会通过合并旧字段而伪装成新来源。历史共识参考仍需单模型核对。
+
+返回 `batchSaved`：`models`／`prices` 各为 `saved`、`skipped`、`pending` 或 `failed`，同时给出 `complete`、`retryable` 和说明。参数写入失败时不开始价格写入。参数成功后核对写入结果与预期快照，再保存价格，继续使用原价格 revision；不以模型写入返回的新状态替换它。部分失败后，模式与选择组合锁定；只有原计划仍有效、未完成命名空间的 revision 未变化，以及已写参数状态可确认时才允许按原报价重试。成功结果在有效期内保留，同一选择重复提交返回原回执。外部修改或结果不确定时拒绝自动重试，要求重新预览；宿主适配器 schema 和钩子的最终校验仍在真实写入时执行。
+
+### 现有操作
+
 操作的完整字段、默认值和严格校验以 `src/wire.ts` 为准；服务实现位于 `src/index.ts`、`src/integration/`。以下 action 不接收任意配置路径：
 
 - `list` / `read` / `routes`：已配置模型、快照及宿主供应商目录。

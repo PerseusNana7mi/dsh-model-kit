@@ -27,7 +27,7 @@ gh workflow run release.yml --ref main
 工作流执行：
 
 1. 检查 package.json 与锁文件的包名／版本一致，拒绝已有标签、Release 或同版本草稿，并生成双语日志。
-2. Ubuntu 执行 npm ci 和 npm run verify；Windows 执行同样检查及五组 Edge 浏览器测试。
+2. Ubuntu 执行 npm ci 和 npm run verify；Windows 执行同样检查及六组 Edge 浏览器测试。
 3. 从已验证的 Ubuntu 构建产物执行 npm pack --ignore-scripts，不重复构建；核对包内版本和必要运行入口，生成 SHA256SUMS。
 4. 所有测试通过后，publish job 下载同一次运行的产物，重新校验提交、版本、日志、发布基线和包校验和，创建对应标签与 Release，附加 `.tgz` 和 SHA256SUMS。
 

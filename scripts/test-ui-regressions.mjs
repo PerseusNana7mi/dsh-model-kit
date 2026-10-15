@@ -337,7 +337,7 @@ try {
   await fill()
   await page.getByRole('button', { name: '编辑价格', exact: true }).click()
   await page.getByLabel('输入', { exact: true }).fill('0')
-  await page.getByLabel('价格数据源').selectOption('basellm')
+  await page.locator('.dmm-price-editor').getByLabel('价格数据源').selectOption('basellm')
   await expect(page.getByLabel('输入', { exact: true })).toHaveValue('0')
   await expect(page.getByLabel('输出', { exact: true })).toHaveValue('')
   await save()

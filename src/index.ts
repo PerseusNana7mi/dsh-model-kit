@@ -6,6 +6,10 @@ import { BASELLM_CATALOG_URL, basellmProviderUrl } from './core/sources.js'
 import { readableError } from './core/errors.js'
 import { ModelImporter } from './integration/import.js'
 import { ModelOverrides } from './integration/overrides.js'
+import { reviewModels, type ReviewCatalogs, type ReviewOptions } from './integration/review.js'
+import { requestSchema } from './wire.js'
+import { BatchEditor } from './integration/batch.js'
+import type { Request } from './wire.js'
 import { catalogCandidates } from './core/diff.js'
 import type {} from '@deepseek-ai/dsh-llm'
 import type { Currency, PriceRecord } from './integration/settings.js'
@@ -62,12 +66,19 @@ export default class ModelMetadataService extends Service {
   private readonly lifetime = new AbortController()
   readonly importer: ModelImporter
   readonly overrides: ModelOverrides
+  private readonly batchEditor: BatchEditor
   constructor(
     private readonly owner: Context,
     private readonly config: Config,
   ) {
     const ctx = owner
     super(ctx, 'modelMetadata')
+    this.batchEditor = new BatchEditor(
+      () => this.settings(),
+      config.modelNamespace,
+      () => this.priceNamespace(),
+      () => this.declaredProviders(),
+    )
     this.overrides = new ModelOverrides(
       () => this.settings(),
       () => {
@@ -140,6 +151,60 @@ export default class ModelMetadataService extends Service {
         id: model.id,
         name: model.name?.trim() || model.id,
       })),
+    )
+  }
+  async batchReview(targets: ReviewOptions['targets'], currency: Currency = 'USD', pricingSource = 'models.dev') {
+    const request = requestSchema.parse({ action: 'batchReview', targets, currency, pricingSource })
+    if (request.action !== 'batchReview') throw new Error('Invalid batch review request')
+    if (request.pricingSource === 'models.dev' && request.currency !== 'USD')
+      throw new Error('Models.dev 仅提供 USD；人民币请选 basellm')
+    const review = await reviewModels(
+      this.settings(),
+      this.config.modelNamespace,
+      this.priceNamespace(),
+      this.declaredProviders(),
+      request,
+      async () => {
+        // Explicit batch checks fetch each selected catalog once, including cacheTtlMs: 0.
+        const [metadata, native] = await Promise.allSettled([
+          this.refresh().then((result) => ({ data: this.catalog, url: result.source, fetchedAt: result.fetchedAt })),
+          request.pricingSource === 'basellm'
+            ? this.refreshNative().then((result) => {
+                this.nativeCatalog = result
+                return { ...result, url: BASELLM_CATALOG_URL }
+              })
+            : Promise.resolve(undefined),
+        ])
+        const catalogs: ReviewCatalogs = { warnings: [] }
+        if (metadata.status === 'fulfilled') {
+          catalogs.metadata = metadata.value
+          if (request.pricingSource === 'models.dev') catalogs.pricing = metadata.value
+        } else catalogs.warnings.push(`Models.dev 未获取：${readableError(metadata.reason)}`)
+        if (native.status === 'fulfilled') {
+          if (native.value) catalogs.pricing = native.value
+        } else catalogs.warnings.push(`basellm 未获取：${readableError(native.reason)}`)
+        return catalogs
+      },
+    )
+    return this.batchEditor.capture(review, request.currency)
+  }
+  batchCommit(request: Extract<Request, { action: 'batchCommit' }>) {
+    return this.batchEditor.commit(request)
+  }
+  private declaredProviders() {
+    return new Set(
+      this.owner
+        .get('llm')
+        ?.listConfigurableProviders()
+        .filter(
+          (row) =>
+            row.declared === true &&
+            row.settingsNs === this.config.modelNamespace &&
+            row.settingsPath.length === 2 &&
+            row.settingsPath[0] === 'providers' &&
+            row.settingsPath[1] === row.provider,
+        )
+        .map((row) => row.provider),
     )
   }
   async previewConfigured(provider: string, id: string, catalogProvider = provider) {
