@@ -38,7 +38,7 @@ const harness: Harness = ((window as any).harness = {
 })
 const scenario = new URLSearchParams(location.search).get('scenario')
 let modelRevision = 0
-if (scenario === 'save-layout' || scenario === 'mappings') {
+if (scenario === 'save-layout' || scenario === 'mappings' || new URLSearchParams(location.search).has('styled')) {
   const style = document.createElement('style')
   style.textContent = css + 'html,body{margin:0}#root{height:100vh}'
   document.head.append(style)

@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "changes": [
+    {
+      "zh": "将高级设置入口更名为“模型推理档位等高级设置”，方便找到推理档位配置。",
+      "en": "Rename the advanced settings section to explicitly mention model reasoning levels, making their configuration easier to find."
+    }
+  ]
+}

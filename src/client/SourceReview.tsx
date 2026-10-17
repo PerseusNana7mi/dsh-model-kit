@@ -134,24 +134,27 @@ export function SourceReview({
       >
         来源：models.dev ↗
       </a>
-      {(notice || error) && (
-        <span
-          className="dmm-fill-status"
-          role={error ? 'alert' : 'status'}
-          title={[
-            error || detail,
-            (candidate ? candidate.reasoningSupported : reasoningSupported) === true && !suggestion?.reasoningEfforts
-              ? '支持推理，档位未知'
-              : reasoningProvider
-                ? `档位来源：${reasoningProvider}`
-                : '',
-          ]
-            .filter(Boolean)
-            .join(' · ')}
-        >
-          {error || notice}
-        </span>
-      )}
+      <span className="dmm-fill-feedback">
+        <span className="dmm-fill-caution">较新模型参数可能有误，请核对</span>
+        {(notice || error) && (
+          <span
+            className="dmm-fill-status"
+            role={error ? 'alert' : 'status'}
+            title={[
+              error || detail,
+              (candidate ? candidate.reasoningSupported : reasoningSupported) === true && !suggestion?.reasoningEfforts
+                ? '支持推理，档位未知'
+                : reasoningProvider
+                  ? `档位来源：${reasoningProvider}`
+                  : '',
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          >
+            {error || notice}
+          </span>
+        )}
+      </span>
       {undo && (
         <button
           className="dmm-undo"

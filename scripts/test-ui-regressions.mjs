@@ -29,8 +29,8 @@ try {
     await list.selectOption(provider)
     await list.press('Enter')
   }
-  const open = async (scenario = '') => {
-    await page.goto(`http://127.0.0.1:${server.address().port}/?scenario=${scenario}`)
+  const open = async (scenario = '', styled = false) => {
+    await page.goto(`http://127.0.0.1:${server.address().port}/?scenario=${scenario}${styled ? '&styled=1' : ''}`)
     await chooseProvider('gateway')
   }
   const select = async (id) => {
@@ -409,18 +409,42 @@ try {
   )
 
   // Clearing a saved capacity is explicitly a no-op; changing output needs consent for that value.
-  await open('conflict')
+  await open('conflict', true)
   await select('gpt-a')
   await page.getByLabel('上下文窗口', { exact: true }).fill('')
   await expect(page.getByRole('button', { name: '保存', exact: true })).toBeDisabled()
   await expect(page.getByText('容量留空保留已保存的值，不会删除配置。')).toBeVisible()
   await page.getByLabel('最大输出 tokens', { exact: true }).fill('8192')
-  await expect(page.getByRole('button', { name: '保存', exact: true })).toBeDisabled()
-  const cap = page.getByLabel('确认最大输出将同时修改每次请求的默认输出上限')
+  await expect(page.getByRole('button', { name: '保存', exact: true })).toBeEnabled()
+  const cap = page.getByLabel('确认将此值作为默认输出上限')
+  const confirmationHeight = await page.locator('.dmm-output-confirm').evaluate((element) => element.offsetHeight)
+  await expect(page.getByRole('button', { name: '解释默认输出上限' })).toHaveCount(0)
+  await expect(page.locator('.dmm-output-confirm label span')).toHaveAttribute('title', /例如填 8192/)
+  await expect(page.locator('.dmm-output-confirm-row')).not.toHaveAttribute('title')
+  const callsBeforeConfirmation = await page.evaluate(() => window.harness.calls.length)
+  await save()
+  await expect(cap).toBeFocused()
+  await expect(cap).toHaveAttribute('aria-invalid', 'true')
+  await expect(page.locator('.dmm-output-bubble')).toContainText('请先勾选确认，再保存')
+  await expect(page.locator('.dmm-output-confirm-row')).toHaveCSS('animation-name', 'dmm-confirm-shake')
+  await save()
+  assert.equal(await page.evaluate(() => window.harness.calls.length), callsBeforeConfirmation)
+  await page.screenshot({ path: 'work/output-confirm-reminder.png', animations: 'disabled', fullPage: true })
+  assert.equal(
+    await page.locator('.dmm-output-confirm').evaluate((element) => element.offsetHeight),
+    confirmationHeight,
+  )
+  await expect(page.locator('.dmm-output-bubble')).toHaveCSS('position', 'absolute')
   await cap.check()
+  await expect(page.locator('.dmm-output-bubble')).toHaveCount(0)
   await page.getByLabel('最大输出 tokens', { exact: true }).fill('4096')
   await expect(cap).not.toBeChecked()
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await save()
+  await expect(page.locator('.dmm-output-confirm-row')).toHaveCSS('animation-name', 'none')
+  assert.equal(await page.evaluate(() => window.harness.calls.length), callsBeforeConfirmation)
   await cap.check()
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
   await save()
   assert.equal(
     await page.evaluate(() => window.harness.calls.find((r) => r.action === 'model').acceptDefaultOutputCap),

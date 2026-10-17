@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "changes": [
+    {
+      "zh": "修改最大输出后未确认便点击保存时，定位并聚焦确认框，以短暂抖动和悬浮气泡说明阻止写入，不挤占页面高度；仅在确认文字悬停时解释默认输出上限，保留无障碍说明并尊重减少动态效果设置。",
+      "en": "When saving a changed output limit without confirmation, focus the checkbox and show a brief shake and floating bubble without writing settings or shifting the page. Show native guidance only on the confirmation text, retain accessible descriptions, respecting reduced-motion preferences."
+    }
+  ]
+}

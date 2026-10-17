@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "changes": [
+    {
+      "zh": "模型补全提示分行显示，提醒较新模型参数可能有误；简化单个价格来源不足时的说明，允许窄屏换行，避免省略号隐藏结果。",
+      "en": "Display model-fill feedback on separate lines with a reminder to verify newer model parameters; shorten insufficient single-source pricing notices and wrap text on narrow screens instead of truncating it."
+    }
+  ]
+}

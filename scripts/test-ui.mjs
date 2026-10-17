@@ -116,7 +116,20 @@ try {
   if (sourceSize.height > 320 || sourceSize.total <= sourceSize.height) throw new Error('Source list must scroll')
   await sources.press('Escape')
   await expect(page.getByRole('button', { name: '填入此来源的信息' })).toHaveCount(0)
+  await expect(page.locator('.dmm-fill-caution')).toHaveText('较新模型参数可能有误，请核对')
+  const feedbackLayout = await page.locator('.dmm-fill-feedback').evaluate((element) => {
+    const caution = element.querySelector('.dmm-fill-caution').getBoundingClientRect()
+    const status = element.querySelector('.dmm-fill-status').getBoundingClientRect()
+    return {
+      separateLines: status.top >= caution.bottom,
+      fullyVisible: element.scrollWidth <= element.clientWidth,
+      overflow: getComputedStyle(element).overflow,
+    }
+  })
+  if (!feedbackLayout.separateLines || !feedbackLayout.fullyVisible || feedbackLayout.overflow === 'hidden')
+    throw new Error(`Fill feedback must show both lines without truncation: ${JSON.stringify(feedbackLayout)}`)
   await page.screenshot({ path: 'work/source-toolbar.png', fullPage: true })
+  await page.locator('.dmm-fill-feedback').screenshot({ path: 'work/model-fill-feedback.png', scale: 'css' })
   await expect(page.getByLabel('上下文窗口', { exact: true })).toHaveValue('128000')
   await expect(page.locator('.dmm-prices')).toContainText('$3')
   await expect(page.locator('.dmm-prices')).toContainText('$15')
@@ -153,8 +166,11 @@ try {
   await page.getByRole('button', { name: '填入模型信息', exact: true }).click()
   await expect(page.getByLabel('显示名', { exact: true })).toHaveValue('Sample model')
   await expect(page.getByLabel('上下文窗口', { exact: true })).toHaveValue('128000')
-  await expect(page.getByRole('button', { name: '保存', exact: true })).toBeDisabled()
-  await page.getByLabel('确认最大输出将同时修改每次请求的默认输出上限').check()
+  await expect(page.getByRole('button', { name: '保存', exact: true })).toBeEnabled()
+  await page.getByRole('button', { name: '保存', exact: true }).click()
+  await expect(page.locator('.dmm-output-bubble')).toContainText('请先勾选确认，再保存')
+  await page.getByLabel('确认将此值作为默认输出上限').check()
+  await expect(page.locator('.dmm-output-bubble')).toHaveCount(0)
   await page.getByRole('button', { name: '保存', exact: true }).hover()
   await expect(page.getByRole('button', { name: '保存', exact: true })).toHaveCSS(
     'background-color',

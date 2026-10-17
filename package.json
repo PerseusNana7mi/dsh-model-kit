@@ -1,6 +1,6 @@
 {
   "name": "dsh-model-kit",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Model parameter editing, imports, and native USD/CNY pricing for DeepSeek Harness.",
   "icon": "./assets/icon.svg",
   "type": "module",

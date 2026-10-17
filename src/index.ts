@@ -504,7 +504,7 @@ export default class ModelMetadataService extends Service {
           priceCandidates,
           priceMessage:
             price.reason === 'insufficient-support'
-              ? `仅找到 1 个 ${currency} 价格来源，请在“编辑价格”中选择参考来源后获取`
+              ? '仅 1 个价格来源，未自动填价'
               : messages[price.reason ?? 'no-valid-price'],
         }
       }

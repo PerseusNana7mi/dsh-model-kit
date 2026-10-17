@@ -7,6 +7,7 @@ import { SourceReview } from './SourceReview.js'
 import { SourceMappingEditor } from './SourceMappingEditor.js'
 import { ImportPanel } from './ImportPanel.js'
 import { ModelSelect } from './ModelSelect.js'
+import { OutputCapConfirmation } from './OutputCapConfirmation.js'
 import type { Reply, Request, PriceState } from '../wire.js'
 import { requestSchema } from '../wire.js'
 import type { ModelFields } from '../core/catalog.js'
@@ -54,6 +55,8 @@ export function Panel({ call, subscribeChanges }: PanelProps) {
   const currentSelection = useRef('')
   currentSelection.current = JSON.stringify([selected, currency, pricingSource, readGeneration])
   const [acceptedOutput, setAcceptedOutput] = useState<number>()
+  const [outputConfirmAttempts, setOutputConfirmAttempts] = useState(0)
+  useEffect(() => setOutputConfirmAttempts(0), [selected, draft?.output, acceptedOutput, readGeneration])
   const [allowPresetOverride, setAllowPresetOverride] = useState(false)
   const [busy, setBusy] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -541,14 +544,11 @@ export function Panel({ call, subscribeChanges }: PanelProps) {
                   <p>容量留空保留已保存的值，不会删除配置。</p>
                 )}
                 {outputChanged && (
-                  <label className="dmm-check">
-                    <input
-                      type="checkbox"
-                      checked={outputConfirmed}
-                      onChange={(e) => setAcceptedOutput(e.target.checked ? Number(draft.output) : undefined)}
-                    />
-                    确认最大输出将同时修改每次请求的默认输出上限
-                  </label>
+                  <OutputCapConfirmation
+                    confirmed={outputConfirmed}
+                    attempts={outputConfirmAttempts}
+                    onChange={(checked) => setAcceptedOutput(checked ? Number(draft.output) : undefined)}
+                  />
                 )}
               </fieldset>
               <div className="dmm-spec-heading">
@@ -784,7 +784,7 @@ export function Panel({ call, subscribeChanges }: PanelProps) {
               )}
               <fieldset disabled={Boolean(loaded?.protectedPreset && !allowPresetOverride)}>
                 <details className="dmm-advanced">
-                  <summary title="推理档位与请求值映射">高级设置</summary>
+                  <summary title="推理档位与请求值映射">模型推理档位等高级设置</summary>
                   <p>
                     这里声明模型支持的推理档位；实际思考档位在聊天中选择。“不支持推理”不保证关闭上游默认思考。选择“自定义档位”后，请按供应商要求填写请求值。
                   </p>
@@ -873,7 +873,6 @@ export function Panel({ call, subscribeChanges }: PanelProps) {
           disabled={
             busy ||
             saving ||
-            !outputConfirmed ||
             !target ||
             !draft ||
             loadedSelection !== selected ||
@@ -881,6 +880,10 @@ export function Panel({ call, subscribeChanges }: PanelProps) {
             Boolean(modelChanged && loaded?.protectedPreset && !allowPresetOverride)
           }
           onClick={() => {
+            if (!outputConfirmed) {
+              setOutputConfirmAttempts((attempts) => attempts + 1)
+              return
+            }
             setSaving(true)
             void run(saveAll)
           }}
