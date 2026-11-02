@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "changes": [
+    {
+      "zh": "将开发测试基线更新至 DSH 0.2.1-rc.5，保留 0.2.0-rc.2 独立锁文件回归和原安装兼容范围，并补充真实模型配置 schema 的保存检查。",
+      "en": "Updated the development baseline to DSH 0.2.1-rc.5, retained separately locked 0.2.0-rc.2 regression coverage and the existing installation range, and added persistence checks using the official model configuration schema."
+    },
+    {
+      "zh": "同步新版 engines.dsh 优先规则、兼容性测试和发布说明，明确自动化验证与维护者自行执行的真实 Desktop 验收边界。",
+      "en": "Updated compatibility tests and documentation for engines.dsh precedence, and clarified the boundary between automated checks and real Desktop acceptance performed by the maintainer."
+    }
+  ]
+}

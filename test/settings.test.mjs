@@ -7,12 +7,14 @@ import { boot, initProfile, readProfilePatches } from '@deepseek-ai/dsh-app-boot
 import ConfigEditor from '@deepseek-ai/dsh-config-editor'
 import Settings from '@deepseek-ai/dsh-settings'
 import Typert from '@deepseek-ai/dsh-typert-registry'
+import { Config as PiAiConfig } from '@deepseek-ai/dsh-llm-pi-ai'
 import Plugin from '../lib/index.js'
 import { PACKAGE_NAME } from '../lib/package-identity.js'
 
 // An isolated profile uses the real boot, Loader, Settings and disk editor.
-// Only the LLM adapter is a schema fixture: no credentials or model calls.
-async function fixture(t, defaultDirectory = true, metadataConfig = {}) {
+// Most cases use a narrow schema fixture. The explicit PiAiConfig case below
+// exercises the official full schema, not adapter hooks or model requests.
+async function fixture(t, defaultDirectory = true, metadataConfig = {}, adapterConfig) {
   const scratch = resolve('work')
   await mkdir(scratch, { recursive: true })
   const home = await mkdtemp(join(scratch, 'settings-'))
@@ -76,45 +78,47 @@ async function fixture(t, defaultDirectory = true, metadataConfig = {}) {
     telemetryDisabledEnv: undefined,
   }
   const Models = {
-    Config: Schema.object({
-      providers: Schema.dict(
-        Schema.object({
-          api: Schema.string(),
-          baseURL: Schema.string(),
-          apiKeyEnv: Schema.string(),
-          headers: Schema.dict(Schema.string().role('secret')),
-          models: Schema.array(
-            Schema.object({
-              id: Schema.string().required(),
-              name: Schema.string(),
-              contextWindow: Schema.number().min(1).step(1),
-              maxTokens: Schema.number().min(1).step(1),
-              input: Schema.array(Schema.union(['text', 'image'])),
-              reasoningEfforts: Schema.union([
-                Schema.const(false),
-                Schema.dict(Schema.union([Schema.string(), Schema.const(null)])),
-              ]),
-              compat: Schema.object({ supportsDeveloperRole: Schema.boolean() }),
-            }),
-          ),
-          modelOverrides: Schema.dict(
-            Schema.object({
-              name: Schema.string(),
-              contextWindow: Schema.number().min(1).step(1),
-              maxTokens: Schema.number().min(1).step(1),
-              input: Schema.array(Schema.union(['text', 'image'])),
-              reasoningEfforts: Schema.union([
-                Schema.const(false),
-                Schema.dict(Schema.union([Schema.string(), Schema.const(null)])),
-              ]),
-              compat: Schema.object({ supportsDeveloperRole: Schema.boolean() }),
-            }),
-          ),
-        }),
-      )
-        .default({})
-        .volatile(),
-    }),
+    Config:
+      adapterConfig ??
+      Schema.object({
+        providers: Schema.dict(
+          Schema.object({
+            api: Schema.string(),
+            baseURL: Schema.string(),
+            apiKeyEnv: Schema.string(),
+            headers: Schema.dict(Schema.string().role('secret')),
+            models: Schema.array(
+              Schema.object({
+                id: Schema.string().required(),
+                name: Schema.string(),
+                contextWindow: Schema.number().min(1).step(1),
+                maxTokens: Schema.number().min(1).step(1),
+                input: Schema.array(Schema.union(['text', 'image'])),
+                reasoningEfforts: Schema.union([
+                  Schema.const(false),
+                  Schema.dict(Schema.union([Schema.string(), Schema.const(null)])),
+                ]),
+                compat: Schema.object({ supportsDeveloperRole: Schema.boolean() }),
+              }),
+            ),
+            modelOverrides: Schema.dict(
+              Schema.object({
+                name: Schema.string(),
+                contextWindow: Schema.number().min(1).step(1),
+                maxTokens: Schema.number().min(1).step(1),
+                input: Schema.array(Schema.union(['text', 'image'])),
+                reasoningEfforts: Schema.union([
+                  Schema.const(false),
+                  Schema.dict(Schema.union([Schema.string(), Schema.const(null)])),
+                ]),
+                compat: Schema.object({ supportsDeveloperRole: Schema.boolean() }),
+              }),
+            ),
+          }),
+        )
+          .default({})
+          .volatile(),
+      }),
     apply() {},
   }
   const contexts = []
@@ -161,6 +165,90 @@ async function fixture(t, defaultDirectory = true, metadataConfig = {}) {
 }
 
 const provider = 'gateway.with/slashes'
+
+test('official llm-pi-ai Config preserves model fields, overrides and native prices through Settings restart', async (t) => {
+  const { ctx, start } = await fixture(t, true, {}, PiAiConfig)
+  const service = ctx.modelMetadata
+  const before = service.readModel(provider, 'm')
+  const originalRoute = structuredClone(
+    ctx.settings.describe({ redactSecrets: true }).find((row) => row.ns === 'llm-pi-ai').value.providers[provider],
+  )
+  const patch = {
+    name: 'Schema checked',
+    contextWindow: 128000,
+    maxTokens: 8192,
+    input: ['text', 'image'],
+    reasoningEfforts: { off: null, low: 'low', high: 'high' },
+  }
+  await assert.rejects(service.saveModel(provider, 'm', patch, before.revision), /acceptDefaultOutputCap/)
+  await service.saveModel(provider, 'm', patch, before.revision, true)
+  assert.deepEqual(service.readModel(provider, 'm').model, { id: 'm', ...patch })
+  await assert.rejects(service.saveModel(provider, 'm', { name: 'Stale' }, before.revision), /changed/)
+  const section = () => ctx.settings.describe({ redactSecrets: true }).find((row) => row.ns === 'llm-pi-ai')
+  const saved = section()
+  assert.deepEqual(saved.value.providers[provider].models[0].compat, originalRoute.models[0].compat)
+  assert.deepEqual(saved.value.providers[provider].models[1], originalRoute.models[1])
+  await assert.rejects(
+    ctx.settings.mutate(
+      'llm-pi-ai',
+      [
+        {
+          op: 'set',
+          path: ['providers', provider, 'models', 0, 'contextWindow'],
+          value: 0,
+        },
+      ],
+      saved.revision,
+    ),
+  )
+  assert.equal(service.readModel(provider, 'm').model.contextWindow, 128000)
+  await service.savePrices(provider, 'm', { input: 0, output: 2 }, service.readPrices(provider, 'm').revision, 'CNY')
+
+  const directory = () => [
+    {
+      provider,
+      displayName: 'Gateway',
+      settingsNs: 'llm-pi-ai',
+      settingsPath: ['providers', provider],
+      declared: true,
+    },
+    {
+      provider: 'builtin-test',
+      displayName: 'Builtin',
+      settingsNs: 'llm-pi-ai',
+      settingsPath: ['providers', 'builtin-test'],
+      declared: false,
+    },
+  ]
+  ctx.llm.listConfigurableProviders = directory
+  ctx.llm.discoverModels = async () => [{ id: 'catalog', name: 'Catalog', contextWindow: 64000 }]
+  let builtin = await service.overrides.read('builtin-test', 'catalog')
+  await assert.rejects(
+    service.overrides.write('builtin-test', 'catalog', { maxTokens: 4096 }, [], builtin.revision, true, false),
+    /输出上限/,
+  )
+  builtin = await service.overrides.write(
+    'builtin-test',
+    'catalog',
+    { name: 'Overridden', maxTokens: 4096 },
+    [],
+    builtin.revision,
+    true,
+    true,
+  )
+  await service.overrides.write('builtin-test', 'catalog', {}, ['name'], builtin.revision, true, false)
+  await ctx.fiber.dispose()
+  const restarted = await start()
+  assert.deepEqual(restarted.modelMetadata.readModel(provider, 'm').model, { id: 'm', ...patch })
+  const price = restarted.modelMetadata.readPrices(provider, 'm')
+  assert.equal(price.record.currency, 'CNY')
+  assert.deepEqual(price.effective, { input: 0, output: 2 })
+  const restored = restarted.settings.describe({ redactSecrets: true }).find((row) => row.ns === 'llm-pi-ai').value
+  assert.equal(restored.providers['builtin-test'].modelOverrides.catalog.maxTokens, 4096)
+  assert.equal(restored.providers['builtin-test'].modelOverrides.catalog.name, undefined)
+  assert.equal(restored.providers['builtin-test'].modelOverrides.catalog.contextWindow, 64)
+  assert.equal(restored.providers[provider].apiKeyEnv, 'SECRET_REF')
+})
 
 test('confirmed alias mappings persist through real Settings restart and fetch fresh prices without changing saved prices', async (t) => {
   const { ctx, start } = await fixture(t)

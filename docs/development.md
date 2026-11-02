@@ -2,7 +2,7 @@
 
 ## 环境与命令
 
-- Node.js ≥ 22.19；开发测试依赖锁定 DSH `0.2.0-rc.2`，对外 peer 使用下述兼容范围；Cordis 与 Schemastery 使用各自独立版本。
+- Node.js ≥ 22.19；主开发测试依赖锁定 DSH `0.2.1-rc.5`、Cordis `4.0.5`、Loader `1.0.6`。Schemastery 精确固定为 `3.18.5`；对外 peer 使用下述兼容范围。
 - 使用 `package-lock.json` 安装依赖；锁文件下载地址使用 npm 官方 registry。
 - 浏览器脚本当前使用本机 Microsoft Edge 的 headless 通道，需要已安装 Edge；`npm ci` 不会安装 Edge。
 
@@ -22,18 +22,24 @@ npm pack
 | `npm test` | 先构建，再测试 lib 中的实际产物 |
 | `npm run verify` | lint、格式、类型检查、构建测试、打包文件预检查；只构建一次 lib，pack 预检查跳过生命周期脚本 |
 | `npm run test:ui` | 六组浏览器脚本，包含批量核对，部分截图写入 work |
+| `npm run test:legacy -- --ui` | 在 work 下创建隔离副本，用已提交的旧宿主锁文件执行 npm ci、verify 和相同的六组 Edge 测试；不修改当前依赖或真实 profile |
+| `npm run test:legacy -- --update-lock` | 依赖调整后更新旧宿主锁文件；只更新锁，不代表测试通过，随后仍需执行回归 |
 | `npm pack` | prepack 先构建，仅生成本地 tgz，不等同于 `npm publish` |
 | `npm run release:notes -- --from <上次发布标签>` | 从双语变更条目生成 work/release/notes.md，仅本地预览，不发布 |
 
-日常使用标准测试命令，不在修改源码后直接测试旧 `lib`。浏览器 fixture 测试不能替代真实 Desktop 验收。GitHub Actions 在 Windows runner 上使用 Node 22.19.0，执行 `npm ci`、`npm run verify` 和六组 Edge 浏览器测试。
+日常使用标准测试命令，不在修改源码后直接测试旧 `lib`。浏览器 fixture 测试不能替代真实 Desktop 验收。GitHub Actions 在 Windows runner 上使用 Node 22.19.0，分别验证主基线和旧宿主的完整检查与六组 Edge 浏览器测试；Ubuntu 验证主基线。真实 Desktop 验收由维护者在发布阶段另行安排，不作为本轮兼容升级或自动发布的阻断条件；结果仍须与自动化分开记录。
 
 ## 宿主版本兼容策略
 
-所有 DSH peer 与声明性的 `engines.dsh` 使用 `^0.2.0-rc.2 || ^0.2.1-alpha.1`，接受 rc.2 起的同基版本预发布、`0.2.1-alpha.1` 起的同基版本预发布及后续 `0.2.x` 正式版；不接受 `0.3.0` 及其预发布。当前安装兼容检查以 peer 为准，`engines.dsh` 只供元数据阅读。Cordis 使用 `~4.0.4`，Loader 使用 `~1.0.5`，允许各自补丁更新；React 保持 `^18.3.1`。
+所有 DSH peer 与 `engines.dsh` 继续使用 `^0.2.0-rc.2 || ^0.2.1-alpha.1`，包含 `0.2.1-rc.5`，不因更新开发依赖而提高安装最低版本；不接受 `0.3.0` 及其预发布。`0.2.0-rc.2` 宿主仅检查 DSH peers；`0.2.1-rc.5` 的[兼容检查器](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.1-rc.5/packages/boot/app-boot/src/plugin-compatibility.ts)在插件自有 `engines.dsh` 存在时只按该字段决定，未声明时才回退 DSH peers；不兼容结果由 `peers` 改为 `requirements`。npm 安装仍独立检查 peer 依赖。两处声明应保持一致。Cordis peer 保留 `~4.0.4`、Loader 保留 `~1.0.5`，覆盖当前补丁版本；React 保持 `^18.3.1`。
 
-DSH rc.2 的 [官方兼容检查器](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.0-rc.2/packages/boot/app-boot/src/plugin-compatibility.ts) 使用 `includePrerelease: true`，因此上述范围还允许后续 `0.2.x` 的预发布进入加载检查。npm 默认规则不同：每个新补丁版本的预发布需要显式加入范围；例如未来 `0.2.2-alpha.1` 会通过当前 DSH 检查，但不满足 npm 默认 peer 判断。后续支持此类版本时，应核对接口、补充范围并回归测试，不依赖用户强制安装或版本豁免。
+两套宿主检查器都使用 `includePrerelease: true`，因此上述范围还允许后续 `0.2.x` 的预发布进入加载检查。npm 默认规则不同：每个新补丁版本的预发布需要显式加入范围；例如 `0.2.2-alpha.1`／`0.2.2-alpha.2` 会通过 DSH 检查，但不满足 npm 默认 peer 判断。后续支持此类版本时，应核对接口、补充范围并回归测试，不依赖用户强制安装或版本豁免。
 
-`devDependencies` 与锁文件中的实际宿主版本继续固定在 rc.2，避免扩大 peer 范围同时改变开发基线。`test/peer-compatibility.test.mjs` 调用真实 `evaluatePluginCompatibility`，并按 npm 默认 SemVer 规则检查已声明版本及范围边界。允许加载不等于已经完成对应版本的运行验证；当前集成测试使用 rc.2。升级到 DSH 0.3 系列前需重新评估接口并更新范围。
+主 `package-lock.json` 固定 `0.2.1-rc.5`；`compat/legacy-package-lock.json` 固定 `0.2.0-rc.2`、Cordis `4.0.4`、Loader `1.0.5`。`scripts/host-versions.mjs` 只转换开发依赖，旧宿主仍测试同一份源代码及实际发布的 dependencies／peers，包括 Schemastery `3.18.5`。运行器复制白名单项目文件，不复制 node_modules、用户配置或构建产物，npm ci 后重新构建；work 下保留隔离环境方便诊断。依赖变化时显式更新旧锁，普通测试发现旧锁过期即失败，不临时解析新版本掩盖差异。插件版本号变化只同步隔离副本的根包版本，不重新解析依赖。
+
+`test/peer-compatibility.test.mjs` 分别调用当前安装宿主的真实检查器，覆盖 engines 优先级、未声明时的 peer 回退、版本边界以及实际安装版本与锁文件一致性。Settings 测试既保留有限字段 fixture，又补充真实 llm-pi-ai 完整 Config schema 的保存与重启检查；后者仍不代表运行了完整适配器服务、internal/config 钩子或真实模型请求。UI 测试使用 Edge 和模拟远程响应，没有覆盖真实 Gateway 的 owner／受限身份授权。当前操作管理 profile 全局配置，未声明 resources 不视为已知缺陷；如以后支持受限连接，需按实际身份和授权策略单独验证，不能把 Web profile 等同于非 owner。
+
+允许加载不等于完成真实 Desktop 验收；兼容性结论以对应测试日志和维护者记录的实际范围为准。升级到 DSH 0.3 系列前需重新评估接口并更新范围。固定历史源码引用和费用接口研究保留其原版本，不将其中的 rc.2 机械替换为 rc.5。
 
 ## 目录职责
 
@@ -102,7 +108,7 @@ GitHub Release 通过手动触发的独立工作流构建、验证并按固定�
 | 中 | 普通模型字段恢复默认 | 中 | 增加明确的“移除本地覆盖／恢复默认”操作，区分“留空保留原值”。先核对 Settings 对模型数组及继承值的语义，保留 revision、脱敏字段保护和 maxTokens 变化确认；删除显式模型字段与删除 modelOverrides 字段的回退来源不同。恢复后可能仍有宿主或上游输出上限，不能承诺无限输出。 |
 | 中 | 单项价格清除 | 中低到中 | 提供显式删除或恢复未知操作，保留“留空不修改”和明确零价的现有语义；区分直接单价与倍率参考，覆盖来源信息清理和重启恢复。 |
 | 中 | 外部配置变化提示 | 中 | 保留用户草稿的同时，提示当前模型或价格版本已经变化；区分无关配置与当前目标变化，继续拒绝过期写入，不自动覆盖或丢弃草稿。revision 冲突与来源陈旧度分别判断，不能互相替代。 |
-| 前置验收 | 真实宿主验收 | 中 | 在 DSH Desktop 与完整 llm-pi-ai 适配器上验证导入、覆盖、输出上限、保存及重连，记录具体宿主版本；浏览器 fixture 和有限字段 schema 集成测试不能替代此验收。计量接入真实聊天前另验证流透传、取消、错误与插件卸载。 |
+| 维护者手动验收 | 真实宿主验收 | 中 | 由维护者在发布阶段另行安排 DSH Desktop 与完整 llm-pi-ai 适配器的导入、覆盖、输出上限、保存及重连检查，记录具体宿主版本；不作为本轮兼容升级或自动发布的门禁。浏览器 fixture 和配置 schema 集成测试不能替代此验收。计量接入真实聊天前另验证流透传、取消、错误与插件卸载。 |
 
 ### 第二组：独立费用估算专项
 

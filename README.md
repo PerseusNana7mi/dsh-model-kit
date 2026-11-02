@@ -16,7 +16,7 @@
 
 [安装](#安装) · [快速开始](#快速开始) · [使用说明](docs/editor.md) · [文档索引](docs/README.md) · [开发](docs/development.md)
 
-面向 **DSH Desktop 0.2.x（从 0.2.0-rc.2 起）**，在 **设置 → 模型信息助手** 中管理已配置模型。开发测试基线为 `0.2.0-rc.2`；其他宿主版本的完整功能仍需单独验证，详见 [兼容策略](docs/development.md#宿主版本兼容策略)。
+面向 **DSH Desktop 0.2.x（从 0.2.0-rc.2 起）**，在 **设置 → 模型信息助手** 中管理已配置模型。开发测试基线为 `0.2.1-rc.5`，另保留 `0.2.0-rc.2` 自动化回归；真实 Desktop 验收由维护者另行执行，详见 [兼容策略](docs/development.md#宿主版本兼容策略)。
 
 <a href="https://raw.githubusercontent.com/PerseusNana7mi/dsh-model-kit/2d5ea37/assets/model-kit-ui.png"><img src="https://raw.githubusercontent.com/PerseusNana7mi/dsh-model-kit/2d5ea37/assets/model-kit-ui.png" alt="模型信息助手界面：模型参数与参考单价" width="600"></a>
 

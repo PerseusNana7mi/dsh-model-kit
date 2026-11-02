@@ -27,7 +27,7 @@ gh workflow run release.yml --ref main
 工作流执行：
 
 1. 检查 package.json 与锁文件的包名／版本一致，拒绝已有标签、Release 或同版本草稿，并生成双语日志。
-2. Ubuntu 执行 npm ci 和 npm run verify；Windows 执行同样检查及六组 Edge 浏览器测试。
+2. Ubuntu 执行 npm ci 和 npm run verify；Windows 执行同样检查及六组 Edge 浏览器测试，再以独立锁文件运行 0.2.0-rc.2 完整检查和相同的浏览器测试。
 3. 从已验证的 Ubuntu 构建产物执行 npm pack --ignore-scripts，不重复构建；核对包内版本和必要运行入口，生成 SHA256SUMS。
 4. 所有测试通过后，publish job 下载同一次运行的产物，重新校验提交、版本、日志、发布基线和包校验和，创建对应标签与 Release，附加 `.tgz` 和 SHA256SUMS。
 
@@ -52,6 +52,8 @@ npm run release:notes -- --from v0.1.4
 ```
 
 输出为 work/release/notes.md，不联网、不创建标签或发布。脚本测试是 `node --test test/release.test.mjs`，也随 npm test／verify 执行。
+
+真实 Desktop 验收由维护者在发布阶段另行安排，不是自动发布工作流的门禁；自动化通过不等于完成真实 Desktop、真实模型或完整适配器验收。
 
 ## 权限、重试与 npm
 

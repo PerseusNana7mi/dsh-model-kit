@@ -54,7 +54,7 @@ jobs:
 
   verify-windows:
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -67,6 +67,8 @@ jobs:
       - run: npm ci
       - run: npm run verify
       - run: npm run test:ui
+      - name: Verify legacy host with its isolated lock and Edge fixtures
+        run: npm run test:legacy -- --ui
 
   publish:
     needs: [package, verify-windows]

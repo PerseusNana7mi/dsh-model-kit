@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 export const FRAGMENT_DIR = '.changes/entries'
 export const COMPATIBILITY_NOTE =
-  '适用于 DSH Desktop 0.2.x，开发测试基线为 0.2.0-rc.2。模型参数与价格通过 DSH 保存到当前配置文件；插件不会自动计算会话费用。安装和使用说明见仓库 README。'
+  '适用于 DSH Desktop 0.2.x，开发测试基线为 0.2.1-rc.5，另保留 0.2.0-rc.2 自动化回归；真实 Desktop 验收由维护者另行执行。模型参数与价格通过 DSH 保存到当前配置文件；插件不会自动计算会话费用。安装和使用说明见仓库 README。'
 
 export function git(cwd, args) {
   return execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()

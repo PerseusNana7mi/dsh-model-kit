@@ -2,7 +2,7 @@
 
 ## 版本及数据位置
 
-目标为 DSH `0.2.0-rc.2`。官方 Settings 从 Loader 的 Config schema 提取 `.volatile()` 字段，通过配置编辑器写入当前 profile 的 `cordis.patch.yml`。旧 `settings.yaml` 属于宿主的迁移输入，本插件不操作它。
+开发测试基线为 DSH `0.2.1-rc.5`，另以 `0.2.0-rc.2` 运行同一套隔离回归。官方 Settings 从 Loader 的 Config schema 提取 `.volatile()` 字段，通过配置编辑器写入当前 profile 的 `cordis.patch.yml`。旧 `settings.yaml` 属于宿主的迁移输入，本插件不操作它。
 
 - 模型配置：默认命名空间 `llm-pi-ai`，通过普通配置 `modelNamespace` 可指定该适配器另一实例的 entry id。
 - 价格配置：本插件实际 Loader entry id（默认 `model-metadata`）下的 `prices` 可变字段。
@@ -82,7 +82,7 @@
 
 集成测试创建工作区内临时 profile，运行实际 DSH boot、Loader、Settings 与 ConfigEditor，写入真实 patch 文件，再启动新 Context 读取恢复值。覆盖旧 revision、竞争写入、人工零价、未知价格、参数校验，以及路由秘密字段和其他模型的保留。
 
-测试中的 LLM 适配器使用有限字段 schema fixture，目录网络使用固定响应；没有连接真实模型或读取用户凭据。UI 另有真实浏览器、模拟调用响应的测试。这些自动化测试不覆盖完整 llm-pi-ai 协议边界、其他宿主版本或真实模型调用。
+多数集成测试中的 LLM 适配器使用有限字段 schema fixture；另有测试使用真实 llm-pi-ai 导出的完整 Config schema，验证模型字段、输出上限确认、内置覆盖／恢复、原币种零价、旧 revision 拒绝和重启恢复。该测试的 LLM 目录仍为 fixture，没有加载适配器完整服务或 internal/config 钩子。目录网络使用固定响应；没有连接真实模型或读取用户凭据。UI 另有真实浏览器、模拟调用响应的测试。这些自动化测试不覆盖完整 llm-pi-ai 协议边界、上述两个版本之外的宿主或真实模型调用。
 
 ## 其他远程操作
 
