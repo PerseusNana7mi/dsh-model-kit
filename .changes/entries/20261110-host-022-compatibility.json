@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "changes": [
+    {
+      "zh": "安装与加载范围新增 DSH 0.2.2-rc.1 起的 0.2.2 版本，并接受 Cordis 4.1 与 Loader 1.1；开发测试基线更新至 0.2.2-rc.1，继续保留 0.2.0-rc.2 隔离回归。",
+      "en": "Extended the installation and loading range to DSH 0.2.2 starting with 0.2.2-rc.1, accepting Cordis 4.1 and Loader 1.1; updated the development baseline to 0.2.2-rc.1 and kept isolated 0.2.0-rc.2 regression coverage."
+    },
+    {
+      "zh": "Schemastery 依赖改为 ~3.18.5 || ~3.19.0，安装时与宿主共用同一份（0.2.2-rc.1 为 3.19.0，旧宿主为 3.18.x），避免重复安装；真实 Desktop 验收由维护者另行执行。",
+      "en": "Changed the Schemastery dependency to ~3.18.5 || ~3.19.0 so installation shares the host copy (3.19.0 on 0.2.2-rc.1, 3.18.x on earlier hosts) instead of adding a second one; real Desktop acceptance remains a separate maintainer step."
+    }
+  ]
+}

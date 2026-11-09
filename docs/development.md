@@ -2,7 +2,7 @@
 
 ## 环境与命令
 
-- Node.js ≥ 22.19；主开发测试依赖锁定 DSH `0.2.1-rc.5`、Cordis `4.0.5`、Loader `1.0.6`。Schemastery 精确固定为 `3.18.5`；对外 peer 使用下述兼容范围。
+- Node.js ≥ 22.19；主开发测试依赖锁定 DSH `0.2.2-rc.1`、Cordis `4.1.0`、Loader `1.1.0`，Schemastery 解析为 `3.19.0`。插件依赖 Schemastery `~3.18.5 || ~3.19.0`，与宿主共用一份。对外 peer 使用下述兼容范围。
 - 使用 `package-lock.json` 安装依赖；锁文件下载地址使用 npm 官方 registry。
 - 浏览器脚本当前使用本机 Microsoft Edge 的 headless 通道，需要已安装 Edge；`npm ci` 不会安装 Edge。
 
@@ -31,11 +31,11 @@ npm pack
 
 ## 宿主版本兼容策略
 
-所有 DSH peer 与 `engines.dsh` 继续使用 `^0.2.0-rc.2 || ^0.2.1-alpha.1`，包含 `0.2.1-rc.5`，不因更新开发依赖而提高安装最低版本；不接受 `0.3.0` 及其预发布。`0.2.0-rc.2` 宿主仅检查 DSH peers；`0.2.1-rc.5` 的[兼容检查器](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.1-rc.5/packages/boot/app-boot/src/plugin-compatibility.ts)在插件自有 `engines.dsh` 存在时只按该字段决定，未声明时才回退 DSH peers；不兼容结果由 `peers` 改为 `requirements`。npm 安装仍独立检查 peer 依赖。两处声明应保持一致。Cordis peer 保留 `~4.0.4`、Loader 保留 `~1.0.5`，覆盖当前补丁版本；React 保持 `^18.3.1`。
+所有 DSH peer 与 `engines.dsh` 继续使用 `^0.2.0-rc.2 || ^0.2.1-alpha.1 || ^0.2.2-rc.1`，包含从 `0.2.0-rc.2` 到 `0.2.2-rc.1` 的版本；不接受 `0.3.0` 及其预发布。`0.2.0-rc.2` 宿主仅检查 DSH peers；`0.2.1-rc.5` 起的[兼容检查器](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.1-rc.5/packages/boot/app-boot/src/plugin-compatibility.ts)在插件自有 `engines.dsh` 存在时只按该字段决定，未声明时才回退 DSH peers；不兼容结果由 `peers` 改为 `requirements`。npm 安装仍独立检查 peer 依赖。两处声明应保持一致。Cordis peer 保留 `~4.0.4 || ~4.1.0`、Loader 保留 `~1.0.5 || ~1.1.0`，覆盖当前补丁版本；React 保持 `^18.3.1`。
 
-两套宿主检查器都使用 `includePrerelease: true`，因此上述范围还允许后续 `0.2.x` 的预发布进入加载检查。npm 默认规则不同：每个新补丁版本的预发布需要显式加入范围；例如 `0.2.2-alpha.1`／`0.2.2-alpha.2` 会通过 DSH 检查，但不满足 npm 默认 peer 判断。后续支持此类版本时，应核对接口、补充范围并回归测试，不依赖用户强制安装或版本豁免。
+两套宿主检查器都使用 `includePrerelease: true`，因此上述范围还允许后续 `0.2.x` 的预发布进入加载检查。npm 默认规则不同：每个新补丁版本的预发布需要显式加入范围；例如 `0.2.3-alpha.1` 会通过 DSH 检查，但不满足 npm 默认 peer 判断。后续支持此类版本时，应核对接口、补充范围并回归测试，不依赖用户强制安装或版本豁免。
 
-主 `package-lock.json` 固定 `0.2.1-rc.5`；`compat/legacy-package-lock.json` 固定 `0.2.0-rc.2`、Cordis `4.0.4`、Loader `1.0.5`。`scripts/host-versions.mjs` 只转换开发依赖，旧宿主仍测试同一份源代码及实际发布的 dependencies／peers，包括 Schemastery `3.18.5`。运行器复制白名单项目文件，不复制 node_modules、用户配置或构建产物，npm ci 后重新构建；work 下保留隔离环境方便诊断。依赖变化时显式更新旧锁，普通测试发现旧锁过期即失败，不临时解析新版本掩盖差异。插件版本号变化只同步隔离副本的根包版本，不重新解析依赖。
+主 `package-lock.json` 固定 `0.2.2-rc.1`、Cordis `4.1.0`、Loader `1.1.0`，Schemastery 解析为 `3.19.0`；`compat/legacy-package-lock.json` 固定 `0.2.0-rc.2`、Cordis `4.0.4`、Loader `1.0.5`，Schemastery 按同一范围解析为宿主的 `3.18.5`。`scripts/host-versions.mjs` 只转换开发依赖，旧宿主测试同一份源代码及实际发布的 dependencies／peerDependencies。运行器复制白名单项目文件，不复制 node_modules、用户配置或构建产物，npm ci 后重新构建；work 下保留隔离环境方便诊断。依赖变化时显式更新旧锁，普通测试发现旧锁过期即失败，不临时解析新版本掩盖差异。插件版本号变化只同步隔离副本的根包版本，不重新解析依赖。
 
 `test/peer-compatibility.test.mjs` 分别调用当前安装宿主的真实检查器，覆盖 engines 优先级、未声明时的 peer 回退、版本边界以及实际安装版本与锁文件一致性。Settings 测试既保留有限字段 fixture，又补充真实 llm-pi-ai 完整 Config schema 的保存与重启检查；后者仍不代表运行了完整适配器服务、internal/config 钩子或真实模型请求。UI 测试使用 Edge 和模拟远程响应，没有覆盖真实 Gateway 的 owner／受限身份授权。当前操作管理 profile 全局配置，未声明 resources 不视为已知缺陷；如以后支持受限连接，需按实际身份和授权策略单独验证，不能把 Web profile 等同于非 owner。
 

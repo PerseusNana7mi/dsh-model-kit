@@ -1,8 +1,8 @@
 # 旧宿主回归
 
-主开发环境使用根目录锁文件中的 DSH `0.2.1-rc.5`。本目录的
+主开发环境使用根目录锁文件中的 DSH `0.2.2-rc.1`。本目录的
 `legacy-package-lock.json` 固定 DSH `0.2.0-rc.2`、Cordis `4.0.4` 和 Loader `1.0.5`。
-其余开发工具、实际发布依赖和 peer 范围保持与主项目一致；不随回归降低 Schemastery。
+插件依赖 Schemastery `~3.18.5 || ~3.19.0`，与宿主共用同一份：主锁解析为 `3.19.0`，旧锁解析为 `3.18.5`，测试检查两套锁都只有一份。其余开发工具、实际发布依赖和 peer 范围与主项目一致。
 
 ```sh
 npm run test:legacy -- --ui
@@ -26,14 +26,15 @@ npm run test:legacy -- --ui
 
 ## 本次验证记录
 
-2026-11-02（Asia/Hong_Kong），Windows、Node 22.19.0、npm 10.9.3：
+2026-11-10（Asia/Hong_Kong），Windows、Node 26.13.0、npm 12.2.1（CI 使用 Node 22.19.0，以 CI 记录为准）：
 
 | 宿主 | npm ci / verify | Node 测试 | Edge fixture |
 | --- | --- | --- | --- |
-| 0.2.1-rc.5 | 通过 | 118 / 118 | 六组全部通过 |
-| 0.2.0-rc.2 | 通过，使用隔离锁文件 | 118 / 118 | 六组全部通过 |
+| 0.2.2-rc.1 | 通过 | 119 / 119 | 六组全部通过 |
+| 0.2.0-rc.2 | 通过，使用隔离锁文件 | 119 / 119 | 六组全部通过 |
 
 覆盖真实 Boot／Loader／Settings／ConfigEditor 的临时 profile 持久化，以及两版
 llm-pi-ai 的完整 Config schema；目录服务和浏览器远程响应仍为 fixture。
-本次未运行完整适配器服务、真实 Gateway 授权链、真实模型请求或 Desktop shell，
-未使用用户真实配置。GitHub CI／Release 尚未触发，本地通过不能写成远程 CI 已通过。
+0.2.1-rc.5 本轮不再单独锁定测试，仍在安装范围内。本次未运行完整适配器服务、
+真实 Gateway 授权链、真实模型请求或 Desktop shell，未使用用户真实配置。
+GitHub CI／Release 尚未触发，本地通过不能写成远程 CI 已通过。

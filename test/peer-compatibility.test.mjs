@@ -28,8 +28,15 @@ test('DSH peers admit the supported release line without a version exemption', (
       assert.ok(semver.satisfies(version, range), `${name} must also pass npm's default rules for ${version}`)
     }
   }
-  // DSH opts into future patch prereleases; npm requires each new base explicitly.
-  for (const version of ['0.2.2-alpha.1', '0.2.2-alpha.2']) {
+  // 0.2.2 prereleases are admitted by npm from rc.1, the first verified one.
+  for (const version of ['0.2.2-rc.1', '0.2.2']) {
+    assert.equal(evaluatePluginCompatibility(manifest, {}, version), undefined)
+    for (const [name, range] of peers) {
+      assert.ok(semver.satisfies(version, range), `${name} must also pass npm's default rules for ${version}`)
+    }
+  }
+  // DSH opts into other patch prereleases; npm requires each new base explicitly.
+  for (const version of ['0.2.2-alpha.2', '0.2.3-alpha.1']) {
     assert.equal(evaluatePluginCompatibility(manifest, {}, version), undefined)
     assert.equal(semver.satisfies(version, manifest.engines.dsh), false)
   }
@@ -79,12 +86,13 @@ test('peer ranges keep the pinned development baseline and lockfile consistent',
     )
     assert.equal(installed.version, baseline, name)
   }
-  for (const [name, allowed, denied] of [
-    ['@deepseek-ai/cordis', '4.0.5', '4.1.0'],
-    ['@deepseek-ai/cordis-plugin-loader', '1.0.6', '1.1.0'],
+  for (const [name, allowed] of [
+    ['@deepseek-ai/cordis', ['4.0.5', '4.1.0']],
+    ['@deepseek-ai/cordis-plugin-loader', ['1.0.6', '1.1.0']],
   ]) {
-    assert.ok(semver.satisfies(allowed, manifest.peerDependencies[name]))
-    assert.equal(semver.satisfies(denied, manifest.peerDependencies[name]), false)
+    for (const version of allowed) {
+      assert.ok(semver.satisfies(version, manifest.peerDependencies[name]), `${name}@${version}`)
+    }
   }
 })
 
@@ -99,5 +107,30 @@ test('legacy lock retains the published dependency contract and all development 
     for (const [name, entry] of Object.entries(graph.packages)) {
       if (entry.resolved) assert.ok(entry.resolved.startsWith('https://registry.npmjs.org/'), `${file}: ${name}`)
     }
+  }
+})
+
+test('Schemastery range shares one copy with each host instead of installing a second', async () => {
+  const range = manifest.dependencies['@deepseek-ai/schemastery']
+  for (const version of ['3.18.5', '3.18.9', '3.19.0', '3.19.4']) assert.ok(semver.satisfies(version, range), version)
+  for (const version of ['3.18.4', '3.20.0', '4.0.0']) assert.equal(semver.satisfies(version, range), false, version)
+  // The isolated legacy copy installs compat/legacy-package-lock.json as its package-lock.json.
+  for (const file of ['../package-lock.json', '../compat/legacy-package-lock.json']) {
+    const graph = JSON.parse(await readFile(new URL(file, import.meta.url), 'utf8'))
+    const copies = Object.entries(graph.packages).filter(([path]) =>
+      path.endsWith('node_modules/@deepseek-ai/schemastery'),
+    )
+    assert.deepEqual(
+      copies.map(([path]) => path),
+      ['node_modules/@deepseek-ai/schemastery'],
+      file,
+    )
+    const host = graph.packages['node_modules/@deepseek-ai/dsh-settings']
+    const hostRange =
+      host.dependencies?.['@deepseek-ai/schemastery'] ?? host.peerDependencies?.['@deepseek-ai/schemastery']
+    assert.ok(
+      semver.satisfies(copies[0][1].version, hostRange),
+      `${file}: ${copies[0][1].version} vs host ${hostRange}`,
+    )
   }
 })

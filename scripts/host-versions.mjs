@@ -1,8 +1,8 @@
-export const CURRENT_HOST = '0.2.1-rc.5'
+export const CURRENT_HOST = '0.2.2-rc.1'
 export const LEGACY_HOST = '0.2.0-rc.2'
 
 // Change only development dependencies. Exercise the same published dependency
-// and peer declarations on both hosts, including the exact Schemastery version.
+// and peer declarations on both hosts; the Schemastery range resolves to each host's copy.
 export function legacyManifest(manifest) {
   const result = structuredClone(manifest)
   for (const name of Object.keys(result.devDependencies)) {

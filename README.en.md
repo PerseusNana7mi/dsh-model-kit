@@ -14,7 +14,7 @@
 
 **Model metadata assistant for DeepSeek Harness:** review model capabilities and reference prices before saving them to DSH.
 
-Designed for **DSH Desktop 0.2.x, starting with 0.2.0-rc.2**. The development and integration-test baseline is `0.2.1-rc.5`, with separate automated regression coverage for `0.2.0-rc.2`. Real Desktop acceptance is performed separately by the maintainer. See the [compatibility policy](docs/development.md#宿主版本兼容策略).
+Designed for **DSH Desktop 0.2.x, starting with 0.2.0-rc.2**. The development and integration-test baseline is `0.2.2-rc.1`, with separate automated regression coverage for `0.2.0-rc.2`. Real Desktop acceptance is performed separately by the maintainer. See the [compatibility policy](docs/development.md#宿主版本兼容策略).
 
 <a href="https://raw.githubusercontent.com/PerseusNana7mi/dsh-model-kit/2d5ea37/assets/model-kit-ui.png"><img src="https://raw.githubusercontent.com/PerseusNana7mi/dsh-model-kit/2d5ea37/assets/model-kit-ui.png" alt="Model Kit settings page showing model capabilities and reference prices" width="600"></a>
 

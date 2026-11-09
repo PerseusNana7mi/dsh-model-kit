@@ -2,7 +2,7 @@
 
 ## 版本及数据位置
 
-开发测试基线为 DSH `0.2.1-rc.5`，另以 `0.2.0-rc.2` 运行同一套隔离回归。官方 Settings 从 Loader 的 Config schema 提取 `.volatile()` 字段，通过配置编辑器写入当前 profile 的 `cordis.patch.yml`。旧 `settings.yaml` 属于宿主的迁移输入，本插件不操作它。
+开发测试基线为 DSH `0.2.2-rc.1`，另以 `0.2.0-rc.2` 运行同一套隔离回归。官方 Settings 从 Loader 的 Config schema 提取 `.volatile()` 字段，通过配置编辑器写入当前 profile 的 `cordis.patch.yml`。旧 `settings.yaml` 属于宿主的迁移输入，本插件不操作它。
 
 - 模型配置：默认命名空间 `llm-pi-ai`，通过普通配置 `modelNamespace` 可指定该适配器另一实例的 entry id。
 - 价格配置：本插件实际 Loader entry id（默认 `model-metadata`）下的 `prices` 可变字段。

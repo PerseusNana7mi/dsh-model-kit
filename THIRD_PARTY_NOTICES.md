@@ -60,7 +60,7 @@ SOFTWARE.
 
 ## @deepseek-ai/schemastery
 
-The server package uses [@deepseek-ai/schemastery](https://github.com/deepseek-ai/deepseek-harness/tree/dsh-v0.2.1-rc.5/vendor/schemastery) `3.18.5`, distributed under the MIT License. Its copyright and license notice are reproduced below.
+The server package depends on [@deepseek-ai/schemastery](https://github.com/deepseek-ai/deepseek-harness/tree/dsh-v0.2.2-rc.1/vendor/schemastery) `~3.18.5 || ~3.19.0` and shares the copy installed with DSH (`3.19.0` for 0.2.2-rc.1, `3.18.x` for earlier hosts). It is distributed under the MIT License. Its copyright and license notice are reproduced below.
 
 MIT License
 
