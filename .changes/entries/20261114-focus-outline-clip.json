@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "changes": [
+    {
+      "zh": "修复设置页面输入框聚焦时左侧轮廓被裁切的问题，为编辑区滚动容器补充左侧内边距。",
+      "en": "Fixed the clipped left outline on focused inputs in the settings page by adding left padding to the editor scroll container."
+    }
+  ]
+}

@@ -37,6 +37,15 @@ try {
     await choose('已添加供应商', 'test')
     await choose('已配置模型', JSON.stringify(['test', 'a']))
     await expect(page.getByLabel('模型 ID', { exact: true })).toHaveValue('a')
+    // Focus outlines (2px wide, 2px offset) must stay inside the editor scroll clip on every side.
+    const clipped = await page.evaluate(() => {
+      const editor = document.querySelector('.dmm-editor-scroll').getBoundingClientRect()
+      return [...document.querySelectorAll('.dmm-editor-scroll input, .dmm-editor-scroll select')]
+        .map((el) => [el.getAttribute('aria-label') ?? el.id ?? el.name, el.getBoundingClientRect()])
+        .filter(([, box]) => box.width > 0 && (box.left - 4 < editor.left || box.right + 4 > editor.right))
+        .map(([name, box]) => `${name}: ${box.left - editor.left}/${editor.right - box.right}`)
+    })
+    assert.deepEqual(clipped, [], `width ${width}`)
     const save = page.getByRole('button', { name: '保存', exact: true })
     await expect(save).toHaveCount(1)
     await expect(save).toHaveAttribute('title', '保存到配置文件')

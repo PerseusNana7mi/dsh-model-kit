@@ -814,7 +814,7 @@
   overscroll-behavior: contain;
   overflow-anchor: none;
   scrollbar-gutter: stable;
-  padding: 0 8px 12px 0;
+  padding: 0 8px 12px 6px;
 }
 
 .dmm .dmm-grid.dmm-model-identity {
